@@ -66,8 +66,10 @@ class Web3Service {
      * @param {string} params.to - Recipient address
      * @param {string} params.value - Amount to send
      * @param {string} params.network - Network to use
+     * @param {string} params.mandate - Optional Mandate (AP2) for Zero Trust validation
+     * @param {Object} params.context - Optional context for validation
      */
-    async sendTransaction({ keyTokenId, to, value, network = 'ethereum' }) {
+    async sendTransaction({ keyTokenId, to, value, network = 'ethereum', mandate, context = {} }) {
         try {
             // 1. Construct Transaction (Simplified)
             const txData = {
@@ -81,7 +83,7 @@ class Web3Service {
             // 2. Sign Transaction using Vault
             // We serialize the txData to string/hex for signing
             const serializedTx = JSON.stringify(txData);
-            const signature = await this.tokenizationService.signWithToken(keyTokenId, serializedTx);
+            const signature = await this.tokenizationService.signWithToken(keyTokenId, serializedTx, mandate, context);
 
             // 3. Broadcast Transaction
             // In production, send signedTx to RPC
@@ -95,6 +97,53 @@ class Web3Service {
             };
         } catch (error) {
             throw this._handleError('sendTransaction', error);
+        }
+    }
+
+    /**
+     * x402 Extension: Execute a stablecoin settlement (USDC/PYUSD)
+     * Provides 24/7 low-latency machine settlements for the agentic economy.
+     */
+    async executeX402Settlement({ keyTokenId, to, amount, stablecoin = 'USDC', network = 'ethereum', mandate }) {
+        try {
+            // Token addresses (Simulation)
+            const tokenAddresses = {
+                'USDC': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                'PYUSD': '0x6c3ea9036406852006290770bedfc29a991f4706'
+            };
+
+            const tokenAddress = tokenAddresses[stablecoin];
+            if (!tokenAddress) throw new Error(`Unsupported stablecoin: ${stablecoin}`);
+
+            console.log(`x402: Executing ${stablecoin} settlement for ${amount} to ${to}...`);
+
+            // 1. Construct ERC20 transfer data (Simplified)
+            const txData = {
+                to: tokenAddress,
+                data: `transfer(${to}, ${amount})`,
+                gasLimit: '65000'
+            };
+
+            // 2. Sign with Mandate (Zero Trust)
+            const signature = await this.tokenizationService.signWithToken(
+                keyTokenId,
+                JSON.stringify(txData),
+                mandate,
+                { amount, merchant: to }
+            );
+
+            // 3. Simulation: Return successful settlement
+            return {
+                settlement_id: `x402_${crypto.randomBytes(8).toString('hex')}`,
+                status: 'finalized',
+                stablecoin,
+                amount,
+                recipient: to,
+                tx_hash: `0x${crypto.randomBytes(32).toString('hex')}`,
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            throw this._handleError('executeX402Settlement', error);
         }
     }
 

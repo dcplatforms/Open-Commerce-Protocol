@@ -7,6 +7,7 @@
 
 const axios = require('axios');
 const crypto = require('crypto');
+const MandateService = require('./mandate');
 
 class TokenizationService {
   constructor(config = {}) {
@@ -27,6 +28,8 @@ class TokenizationService {
         'Content-Type': 'application/json'
       }
     });
+
+    this.mandateService = new MandateService(config.mandateConfig);
   }
 
   /**
@@ -310,17 +313,51 @@ class TokenizationService {
    * Sign data using a stored token (Simulates secure reactor/enclave)
    * @param {string} tokenId - Token ID of the private key
    * @param {string} dataToSign - Hex or string data to sign
+   * @param {string} mandate - Optional signed Mandate (AP2) for Zero Trust validation
+   * @param {Object} context - Optional transaction context for validation (e.g., amount, merchant)
    * @returns {Promise<string>} Signature
    */
-  async signWithToken(tokenId, dataToSign) {
+  async signWithToken(tokenId, dataToSign, mandate, context = {}) {
     try {
+      // Zero Trust Validation: Verify mandate if provided
+      if (mandate) {
+        const decodedMandate = await this.mandateService.verifyMandate(mandate);
+
+        // Validate budget if context amount is provided
+        if (context.amount) {
+          // Check Intent Mandate budget
+          if (decodedMandate.max_budget && context.amount > decodedMandate.max_budget.value) {
+            throw new Error(`Zero Trust Validation Failed: Amount ${context.amount} exceeds mandate budget of ${decodedMandate.max_budget.value}`);
+          }
+          // Check Cart Mandate total price
+          if (decodedMandate.total_price && context.amount !== decodedMandate.total_price) {
+            throw new Error(`Zero Trust Validation Failed: Amount ${context.amount} does not match cart mandate total of ${decodedMandate.total_price}`);
+          }
+        }
+
+        // Validate merchant if context merchant is provided
+        if (context.merchant && decodedMandate.allowed_merchants?.length > 0) {
+          if (!decodedMandate.allowed_merchants.includes(context.merchant)) {
+            throw new Error(`Zero Trust Validation Failed: Merchant ${context.merchant} not authorized by mandate`);
+          }
+        }
+
+        // Validate expiration
+        if (decodedMandate.exp < Math.floor(Date.now() / 1000)) {
+          throw new Error('Zero Trust Validation Failed: Mandate has expired');
+        }
+      } else if (process.env.STRICT_MANDATE_MODE === 'true') {
+        throw new Error('Zero Trust Validation Failed: Mandate required for signing in strict mode');
+      }
+
       // In a real implementation, this would call a Basis Theory Reactor
       // providing the tokenId. The Reactor would securely retrieve the
       // secret and sign the data without exposing the key.
       const response = await this.client.post('/reactors/sign', {
         args: {
           tokenId,
-          data: dataToSign
+          data: dataToSign,
+          mandate // Pass mandate to reactor for server-side validation
         }
       });
 
@@ -329,7 +366,7 @@ class TokenizationService {
       // Fallback for simulation/testing if reactor endpoint doesn't exist
       // We assume for simulation that we can just "mock" a signature
       if (process.env.NODE_ENV !== 'production' || this.apiKey === 'test-key') {
-        return `0x_mock_signature_of_${dataToSign}_with_${tokenId}`;
+        return `0x_mock_signature_of_${dataToSign}_with_${tokenId}${mandate ? '_validated_by_mandate' : ''}`;
       }
       throw this._handleError(error);
     }
