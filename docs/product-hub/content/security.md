@@ -1,6 +1,16 @@
 # Security Overview
 
-Security is a foundational pillar of the Open Commerce Protocol (OCP). The SDK is designed with a "secure by design" philosophy, incorporating multiple layers of protection to ensure the integrity, confidentiality, and availability of all commerce transactions and sensitive data.
+Security is a foundational pillar of the Open Commerce Protocol (OCP). The SDK is designed with a **Zero Trust** architecture, incorporating multiple layers of protection to ensure the integrity, confidentiality, and authority of all autonomous commerce transactions.
+
+## The Last Line of Defense (Mandate-Enforced)
+
+OCP implements the **"Last Line of Defense"** principle through cryptographic validation. The Secure Enclave (Vault) never signs a transaction unless it passes a validation check against a signed **AP2 Mandate**. This ensures that even if an agent's logic is compromised, it cannot spend beyond its authorized budget or interact with unauthorized merchants.
+
+### STRICT_MANDATE_MODE
+
+To enforce absolute security, OCP supports a `STRICT_MANDATE_MODE`. When enabled:
+*   Every signing request to the Tokenization Service **must** include a valid, signed Mandate.
+*   Requests without a mandate will be rejected immediately, preventing "naked" transactions.
 
 ## Core Security Features
 

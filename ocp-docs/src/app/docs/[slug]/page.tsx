@@ -29,6 +29,31 @@ export default async function DocPage({ params }: { params: { slug: string } }) 
                   <li><a href="/docs/getting-started" className="text-white/60 hover:text-white transition-colors">Quick Start</a></li>
                </ul>
              </div>
+
+             <div>
+               <h4 className="font-montserrat font-bold text-xs uppercase tracking-widest text-white/40 mb-4">Core Protocols</h4>
+               <ul className="space-y-3 text-sm">
+                  <li><a href="/docs/ap2" className="text-white/60 hover:text-white transition-colors">Agent Payments (AP2)</a></li>
+                  <li><a href="/docs/mpp" className="text-white/60 hover:text-white transition-colors">Machine Payments (MPP)</a></li>
+               </ul>
+             </div>
+
+             <div>
+               <h4 className="font-montserrat font-bold text-xs uppercase tracking-widest text-white/40 mb-4">Architecture</h4>
+               <ul className="space-y-3 text-sm">
+                  <li><a href="/docs/ARCHITECTURE" className="text-white/60 hover:text-white transition-colors">Overview</a></li>
+                  <li><a href="/docs/BUSINESS_STRATEGY" className="text-white/60 hover:text-white transition-colors">Business Strategy</a></li>
+                  <li><a href="/docs/security" className="text-white/60 hover:text-white transition-colors">Security & Zero Trust</a></li>
+                  <li><a href="/docs/compliance" className="text-white/60 hover:text-white transition-colors">Compliance</a></li>
+               </ul>
+             </div>
+
+             <div>
+               <h4 className="font-montserrat font-bold text-xs uppercase tracking-widest text-white/40 mb-4">Settlement Rails</h4>
+               <ul className="space-y-3 text-sm">
+                  <li><a href="/docs/x402" className="text-white/60 hover:text-white transition-colors">x402 Extension</a></li>
+               </ul>
+             </div>
           </div>
         </aside>
 

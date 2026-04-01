@@ -56,6 +56,9 @@ dump.rdb
 
 # Documentation (generated)
 docs/api/
+ocp-docs/.next/
+ocp-docs/out/
+ocp-docs/node_modules/
 
 # OS
 Thumbs.db
