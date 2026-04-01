@@ -6,6 +6,7 @@
  */
 
 const crypto = require('crypto');
+const MandateService = require('./mandate');
 
 class AgentService {
   constructor(database, config = {}) {
@@ -14,6 +15,7 @@ class AgentService {
       defaultSpendingLimit: config.defaultSpendingLimit || 1000,
       defaultAuthorizedCounterparties: config.defaultAuthorizedCounterparties || []
     };
+    this.mandateService = new MandateService(config.mandateConfig);
   }
 
   /**
@@ -97,6 +99,47 @@ class AgentService {
       return updatedAgent;
     } catch (error) {
       throw this._handleError('updateAgentPolicy', error);
+    }
+  }
+
+  /**
+   * Issue an Intent Mandate for an agent
+   * @param {Object} params - Intent parameters
+   */
+  async issueIntentMandate({ userDid, agentId, maxBudget, currency, expiration, purposeCode, allowedMerchants }) {
+    try {
+      const agent = await this.getAgent(agentId);
+      const agentDid = agent.metadata?.get('did') || `did:key:${agentId}`;
+
+      return await this.mandateService.issueIntentMandate({
+        userDid,
+        agentDid,
+        maxBudget,
+        currency,
+        expiration,
+        purposeCode,
+        allowedMerchants
+      });
+    } catch (error) {
+      throw this._handleError('issueIntentMandate', error);
+    }
+  }
+
+  /**
+   * Issue a Verifiable Credential for an agent
+   */
+  async issueAgentVC({ userDid, agentId, capabilities }) {
+    try {
+      const agent = await this.getAgent(agentId);
+      const agentDid = agent.metadata?.get('did') || `did:key:${agentId}`;
+
+      return await this.mandateService.issueAgentVC({
+        userDid,
+        agentDid,
+        capabilities
+      });
+    } catch (error) {
+      throw this._handleError('issueAgentVC', error);
     }
   }
 

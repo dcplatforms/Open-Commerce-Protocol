@@ -1,0 +1,131 @@
+#!/usr/bin/env node
+
+/**
+ * OCP CLI - Open Commerce Protocol Command Line Interface
+ *
+ * Scaffolds OCP projects, manages agent identities, issues mandates, and checks balances.
+ */
+
+const { Command } = require('commander');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const MandateService = require('../src/services/mandate');
+
+const program = new Command();
+
+program
+  .name('ocp')
+  .description('CLI for Open Commerce Protocol (OCP) SDK')
+  .version('1.0.0');
+
+// ocp init
+program.command('init')
+  .description('Scaffolds a new OCP project with local vault simulation')
+  .action(() => {
+    console.log('Scaffolding new OCP project...');
+    const projectStructure = [
+      'src',
+      'src/agents',
+      'src/mandates',
+      'config'
+    ];
+
+    projectStructure.forEach(dir => {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+    });
+
+    const envContent = `
+TOKENIZATION_API_KEY=test-key
+TOKENIZATION_BASE_URL=http://localhost:8080
+MANDATE_SIGNING_KEY=${crypto.randomBytes(32).toString('hex')}
+STRICT_MANDATE_MODE=true
+    `.trim();
+
+    fs.writeFileSync('.env', envContent);
+    console.log('Project initialized successfully. Local vault simulation configured in .env');
+  });
+
+// ocp agent:create
+program.command('agent:create')
+  .description('Generates an agent identity (did:key) and linked wallet')
+  .argument('<name>', 'Name of the agent')
+  .action((name) => {
+    const agentId = `agent_${crypto.randomBytes(4).toString('hex')}`;
+    const agentDid = `did:key:${crypto.randomBytes(16).toString('hex')}`;
+
+    const agentData = {
+      id: agentId,
+      name: name,
+      did: agentDid,
+      wallet_address: `0x${crypto.randomBytes(20).toString('hex')}`,
+      created_at: new Date().toISOString()
+    };
+
+    if (!fs.existsSync('src/agents')) fs.mkdirSync('src/agents', { recursive: true });
+    fs.writeFileSync(`src/agents/${agentId}.json`, JSON.stringify(agentData, null, 2));
+
+    console.log(`Agent created: ${name}`);
+    console.log(`ID: ${agentId}`);
+    console.log(`DID: ${agentDid}`);
+  });
+
+// ocp mandate:issue
+program.command('mandate:issue')
+  .description('Interactively creates a signed Intent Mandate for an agent')
+  .option('--agent <id>', 'Agent ID')
+  .option('--budget <amount>', 'Maximum budget', '100')
+  .option('--currency <code >', 'Currency', 'USD')
+  .action(async (options) => {
+    if (!options.agent) {
+      console.error('Error: Agent ID required. Use --agent <id>');
+      return;
+    }
+
+    const signingKey = process.env.MANDATE_SIGNING_KEY || 'default-secret-key';
+    const mandateService = new MandateService({ signingKey });
+
+    const mandateToken = await mandateService.issueIntentMandate({
+      userDid: 'did:key:user-local',
+      agentDid: `did:key:${options.agent}`,
+      maxBudget: parseFloat(options.budget),
+      currency: options.currency,
+      purposeCode: 'CLI_ISSUED'
+    });
+
+    const decoded = await mandateService.verifyMandate(mandateToken);
+    const mandateId = decoded.mandate_id;
+
+    if (!fs.existsSync('src/mandates')) fs.mkdirSync('src/mandates', { recursive: true });
+    fs.writeFileSync(`src/mandates/${mandateId}.jwt`, mandateToken);
+
+    console.log(`Intent Mandate issued for agent ${options.agent}`);
+    console.log(`Mandate ID: ${mandateId}`);
+    console.log(`Budget: ${options.budget} ${options.currency}`);
+    console.log(`Saved to: src/mandates/${mandateId}.jwt`);
+  });
+
+// ocp wallet:balance
+program.command('wallet:balance')
+  .description('Checks real-time balances across ledger and Web3 rails')
+  .argument('<address>', 'Wallet address or Agent ID')
+  .action((address) => {
+    console.log(`Checking balances for ${address}...`);
+    // Mock balance retrieval
+    const balances = {
+      ledger: '500.00 USD',
+      web3: {
+        eth: '1.25 ETH',
+        usdc: '250.00 USDC',
+        pyusd: '100.00 PYUSD'
+      }
+    };
+
+    console.log(`Ledger Balance: ${balances.ledger}`);
+    console.log(`Web3 Balances:`);
+    console.log(`  - ETH: ${balances.web3.eth}`);
+    console.log(`  - USDC: ${balances.web3.usdc}`);
+    console.log(`  - PYUSD: ${balances.web3.pyusd}`);
+  });
+
+program.parse();
