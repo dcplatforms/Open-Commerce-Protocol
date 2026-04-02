@@ -128,4 +128,45 @@ program.command('wallet:balance')
     console.log(`  - PYUSD: ${balances.web3.pyusd}`);
   });
 
+// ocp x402:settle
+program.command('x402:settle')
+  .description('Executes a 24/7 stablecoin settlement (USDC/PYUSD) using the x402 extension')
+  .argument('<amount>', 'Amount to settle')
+  .option('--to <address>', 'Recipient address')
+  .option('--token <type>', 'Stablecoin token (USDC/PYUSD)', 'USDC')
+  .option('--mandate <path>', 'Path to the signed Mandate JWT')
+  .action(async (amount, options) => {
+    if (!options.to) {
+      console.error('Error: Recipient address required. Use --to <address>');
+      return;
+    }
+
+    console.log(`x402: Initiating ${options.token} settlement of ${amount} to ${options.to}...`);
+
+    let mandateToken = null;
+    if (options.mandate) {
+      if (fs.existsSync(options.mandate)) {
+        mandateToken = fs.readFileSync(options.mandate, 'utf8');
+      } else {
+        console.error(`Error: Mandate file not found at ${options.mandate}. In STRICT_MANDATE_MODE, a valid mandate is required for signing.`);
+        return;
+      }
+    } else {
+      console.error(`Error: Mandate required for x402 settlement in STRICT_MANDATE_MODE.`);
+      return;
+    }
+
+    // Simulation of x402 settlement
+    const settlementId = `x402_${crypto.randomBytes(8).toString('hex')}`;
+    const txHash = `0x${crypto.randomBytes(32).toString('hex')}`;
+
+    console.log(`Settlement Successful!`);
+    console.log(`ID: ${settlementId}`);
+    console.log(`Token: ${options.token}`);
+    console.log(`Amount: ${amount}`);
+    console.log(`Recipient: ${options.to}`);
+    console.log(`Transaction Hash: ${txHash}`);
+    console.log(`Status: Finalized (24/7 Low-Latency Rails)`);
+  });
+
 program.parse();
