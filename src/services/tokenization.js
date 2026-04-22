@@ -15,6 +15,8 @@ class TokenizationService {
     this.baseURL = config.baseURL || process.env.TOKENIZATION_BASE_URL || 'https://api.basistheory.com';
     this.tenantId = config.tenantId || process.env.TOKENIZATION_TENANT_ID;
     this.timeout = config.timeout || 30000;
+    this.strictMandateMode = config.strictMandateMode !== undefined ?
+      config.strictMandateMode : (process.env.STRICT_MANDATE_MODE === 'true');
 
     if (!this.apiKey) {
       throw new Error('Tokenization API key is required');
@@ -318,38 +320,46 @@ class TokenizationService {
    * @returns {Promise<string>} Signature
    */
   async signWithToken(tokenId, dataToSign, mandate, context = {}) {
-    try {
-      // Zero Trust Validation: Verify mandate if provided
-      if (mandate) {
-        const decodedMandate = await this.mandateService.verifyMandate(mandate);
-
-        // Validate budget if context amount is provided
-        if (context.amount) {
-          // Check Intent Mandate budget
-          if (decodedMandate.max_budget && context.amount > decodedMandate.max_budget.value) {
-            throw new Error(`Zero Trust Validation Failed: Amount ${context.amount} exceeds mandate budget of ${decodedMandate.max_budget.value}`);
-          }
-          // Check Cart Mandate total price
-          if (decodedMandate.total_price && context.amount !== decodedMandate.total_price) {
-            throw new Error(`Zero Trust Validation Failed: Amount ${context.amount} does not match cart mandate total of ${decodedMandate.total_price}`);
-          }
-        }
-
-        // Validate merchant if context merchant is provided
-        if (context.merchant && decodedMandate.allowed_merchants?.length > 0) {
-          if (!decodedMandate.allowed_merchants.includes(context.merchant)) {
-            throw new Error(`Zero Trust Validation Failed: Merchant ${context.merchant} not authorized by mandate`);
-          }
-        }
-
-        // Validate expiration
-        if (decodedMandate.exp < Math.floor(Date.now() / 1000)) {
+    // Zero Trust Validation: Verify mandate BEFORE entering try/catch simulation block
+    if (mandate) {
+      let decodedMandate;
+      try {
+        decodedMandate = await this.mandateService.verifyMandate(mandate);
+      } catch (error) {
+        if (error.message.includes('jwt expired')) {
           throw new Error('Zero Trust Validation Failed: Mandate has expired');
         }
-      } else if (process.env.STRICT_MANDATE_MODE === 'true') {
-        throw new Error('Zero Trust Validation Failed: Mandate required for signing in strict mode');
+        throw new Error(`Zero Trust Validation Failed: ${error.message}`);
       }
 
+      // Validate budget if context amount is provided
+      if (context.amount) {
+        // Check Intent Mandate budget
+        if (decodedMandate.max_budget && context.amount > decodedMandate.max_budget.value) {
+          throw new Error(`Zero Trust Validation Failed: Amount ${context.amount} exceeds mandate budget of ${decodedMandate.max_budget.value}`);
+        }
+        // Check Cart Mandate total price
+        if (decodedMandate.total_price && context.amount !== decodedMandate.total_price) {
+          throw new Error(`Zero Trust Validation Failed: Amount ${context.amount} does not match cart mandate total of ${decodedMandate.total_price}`);
+        }
+      }
+
+      // Validate merchant if context merchant is provided
+      if (context.merchant && decodedMandate.allowed_merchants?.length > 0) {
+        if (!decodedMandate.allowed_merchants.includes(context.merchant)) {
+          throw new Error(`Zero Trust Validation Failed: Merchant ${context.merchant} not authorized by mandate`);
+        }
+      }
+
+      // Validate expiration
+      if (decodedMandate.exp < Math.floor(Date.now() / 1000)) {
+        throw new Error('Zero Trust Validation Failed: Mandate has expired');
+      }
+    } else if (this.strictMandateMode) {
+      throw new Error('Zero Trust Validation Failed: Mandate required for signing in strict mode');
+    }
+
+    try {
       // In a real implementation, this would call a Basis Theory Reactor
       // providing the tokenId. The Reactor would securely retrieve the
       // secret and sign the data without exposing the key.
