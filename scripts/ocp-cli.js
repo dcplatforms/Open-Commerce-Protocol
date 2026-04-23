@@ -156,7 +156,30 @@ program.command('x402:settle')
       return;
     }
 
-    // Simulation of x402 settlement
+    // Simulation of x402 settlement with fiduciary validation
+    const signingKey = process.env.MANDATE_SIGNING_KEY || 'default-secret-key';
+    const mandateService = new MandateService({ signingKey });
+
+    try {
+      const decodedMandate = await mandateService.verifyMandate(mandateToken);
+      const amountNum = parseFloat(amount);
+
+      // Validate budget
+      if (decodedMandate.max_budget && amountNum > decodedMandate.max_budget.value) {
+        console.error(`Fiduciary Validation Failed: Amount ${amountNum} exceeds mandate budget of ${decodedMandate.max_budget.value} ${decodedMandate.max_budget.currency}`);
+        return;
+      }
+
+      // Validate expiration
+      if (decodedMandate.exp < Math.floor(Date.now() / 1000)) {
+        console.error('Fiduciary Validation Failed: Mandate has expired');
+        return;
+      }
+    } catch (error) {
+      console.error(`Fiduciary Validation Failed: ${error.message}`);
+      return;
+    }
+
     const settlementId = `x402_${crypto.randomBytes(8).toString('hex')}`;
     const txHash = `0x${crypto.randomBytes(32).toString('hex')}`;
 

@@ -1,0 +1,4 @@
+Intent Mandate issued for agent agent_6382d61c
+Mandate ID: mandate_be7dc63fcbb70f38
+Budget: 100 USD
+Saved to: src/mandates/mandate_be7dc63fcbb70f38.jwt

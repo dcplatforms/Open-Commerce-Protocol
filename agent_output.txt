@@ -1,0 +1,3 @@
+Agent created: TestAgent
+ID: agent_6382d61c
+DID: did:key:06ffeafa6f71c7bd83ad21ce4fb56e2c
