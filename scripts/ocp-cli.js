@@ -166,17 +166,17 @@ program.command('x402:settle')
 
       // Validate budget
       if (decodedMandate.max_budget && amountNum > decodedMandate.max_budget.value) {
-        console.error(`Fiduciary Validation Failed: Amount ${amountNum} exceeds mandate budget of ${decodedMandate.max_budget.value} ${decodedMandate.max_budget.currency}`);
+        console.error(`Zero Trust Validation Failed: Amount ${amountNum} exceeds mandate budget of ${decodedMandate.max_budget.value} ${decodedMandate.max_budget.currency}`);
         return;
       }
 
       // Validate expiration
       if (decodedMandate.exp < Math.floor(Date.now() / 1000)) {
-        console.error('Fiduciary Validation Failed: Mandate has expired');
+        console.error('Zero Trust Validation Failed: Mandate has expired');
         return;
       }
     } catch (error) {
-      console.error(`Fiduciary Validation Failed: ${error.message}`);
+      console.error(`Zero Trust Validation Failed: ${error.message}`);
       return;
     }
 

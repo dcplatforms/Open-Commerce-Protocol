@@ -6,6 +6,8 @@
  * and retries the request with the payment header.
  */
 
+const logger = require('../utils/logger');
+
 class MPP402Handler {
   constructor(agentService, mandateService) {
     this.agentService = agentService;
@@ -40,7 +42,7 @@ class MPP402Handler {
    * @private
    */
   async _handle402Response(agent, response, intentMandateToken, requestFn) {
-    console.log(`MPP: Handling 402 Payment Required for agent ${agent.name}`);
+    logger.info(`MPP: Handling 402 Payment Required for agent ${agent.name}`);
 
     // 1. Extract payment requirement details from headers or body
     // MPP standard uses headers like 'X-MPP-Amount' and 'X-MPP-Merchant-DID'
@@ -62,7 +64,7 @@ class MPP402Handler {
     }
 
     // 3. Generate a Cart Mandate for the specific 402 request
-    console.log(`MPP: Issuing autonomous cart mandate for amount ${amount}`);
+    logger.info(`MPP: Issuing autonomous cart mandate for amount ${amount}`);
     const cartMandateToken = await this.mandateService.issueCartMandate({
       intentMandate: intentMandateToken,
       cartItems,
@@ -71,7 +73,7 @@ class MPP402Handler {
     });
 
     // 4. Retry the request with the Payment Mandate header
-    console.log(`MPP: Retrying request with Cart Mandate...`);
+    logger.info(`MPP: Retrying request with Cart Mandate...`);
     return await requestFn({
       headers: {
         'X-OCP-Cart-Mandate': cartMandateToken,
