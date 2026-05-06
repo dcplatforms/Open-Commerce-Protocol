@@ -6,6 +6,7 @@
  */
 
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 class Web3Service {
     constructor(tokenizationService) {
@@ -113,9 +114,9 @@ class Web3Service {
             };
 
             const tokenAddress = tokenAddresses[stablecoin];
-            if (!tokenAddress) throw new Error(`Unsupported stablecoin: ${stablecoin}`);
+            if (!tokenAddress) throw new Error(`Zero Trust Validation Failed: Unsupported stablecoin: ${stablecoin}`);
 
-            console.log(`x402: Executing ${stablecoin} settlement for ${amount} to ${to}...`);
+            logger.info(`x402: Executing ${stablecoin} settlement for ${amount} to ${to}...`);
 
             // 1. Construct ERC20 transfer data (Simplified)
             const txData = {
@@ -152,7 +153,7 @@ class Web3Service {
      * @private
      */
     _handleError(method, error) {
-        console.error(`Web3Service.${method} error:`, error);
+        logger.error(`Web3Service.${method} error:`, error);
         return error instanceof Error ? error : new Error(error);
     }
 }

@@ -7,6 +7,7 @@
 
 const crypto = require('crypto');
 const MandateService = require('./mandate');
+const logger = require('../utils/logger');
 
 class AgentService {
   constructor(database, config = {}) {
@@ -184,7 +185,7 @@ class AgentService {
    * @private
    */
   _handleError(method, error) {
-    console.error(`AgentService.${method} error:`, error);
+    logger.error(`AgentService.${method} error:`, error);
     return error instanceof Error ? error : new Error(error);
   }
 }

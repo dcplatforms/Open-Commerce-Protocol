@@ -8,6 +8,7 @@
 
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 class MandateService {
   constructor(config = {}) {
@@ -107,7 +108,10 @@ class MandateService {
       sub: agentDid,
       nbf: Math.floor(Date.now() / 1000),
       vc: {
-        '@context': ['https://www.w3.org/2018/credentials/v1'],
+        '@context': [
+          'https://www.w3.org/2018/credentials/v1',
+          'https://open-commerce-protocol.io/contexts/agent/v1'
+        ],
         type: ['VerifiableCredential', 'AgentAuthorityCredential'],
         credentialSubject: {
           id: agentDid,
@@ -118,6 +122,15 @@ class MandateService {
     };
 
     return jwt.sign(payload, this.signingKey, { algorithm: 'HS256' });
+  }
+
+  /**
+   * Handle and format errors
+   * @private
+   */
+  _handleError(method, error) {
+    logger.error(`MandateService.${method} error:`, error);
+    return error instanceof Error ? error : new Error(error);
   }
 }
 

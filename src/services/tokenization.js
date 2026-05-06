@@ -8,6 +8,7 @@
 const axios = require('axios');
 const crypto = require('crypto');
 const MandateService = require('./mandate');
+const logger = require('../utils/logger');
 
 class TokenizationService {
   constructor(config = {}) {
@@ -387,6 +388,8 @@ class TokenizationService {
    * @private
    */
   _handleError(error) {
+    logger.error('TokenizationService error:', error);
+
     if (error.response) {
       const { status, data } = error.response;
       return new Error(
