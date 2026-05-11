@@ -6,6 +6,7 @@
  */
 
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 class WalletService {
   constructor(database, config = {}) {
@@ -402,12 +403,12 @@ class WalletService {
     try {
       // This would integrate with a stored payment method
       // For now, just log the event
-      console.log(`Auto top-up triggered for wallet ${walletId}. Current balance: ${currentBalance}`);
+      logger.info(`Auto top-up triggered for wallet ${walletId}. Current balance: ${currentBalance}`);
 
       // You would implement actual top-up logic here
       // Example: await this.addFunds({ walletId, amount: this.config.autoTopUp.amount, ... });
     } catch (error) {
-      console.error('Auto top-up failed:', error);
+      logger.error('Auto top-up failed:', error);
     }
   }
 
@@ -424,7 +425,7 @@ class WalletService {
    * @private
    */
   _handleError(method, error) {
-    console.error(`WalletService.${method} error:`, error);
+    logger.error(`WalletService.${method} error:`, error);
     return error instanceof Error ? error : new Error(error);
   }
 }

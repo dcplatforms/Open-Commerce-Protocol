@@ -7,6 +7,7 @@
  */
 
 const Joi = require('joi');
+const logger = require('../utils/logger');
 
 class UCPService {
   constructor(a2aService, config = {}) {
@@ -123,7 +124,7 @@ class UCPService {
    * @private
    */
   _handleError(method, error) {
-    console.error(`UCPService.${method} error:`, error);
+    logger.error(`UCPService.${method} error:`, error);
     return error instanceof Error ? error : new Error(error);
   }
 }

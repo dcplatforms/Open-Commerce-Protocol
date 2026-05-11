@@ -7,6 +7,7 @@
 
 const TokenizationService = require('./tokenization');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 class MobilePaymentService {
   constructor(tokenizationService, walletService, config = {}) {
@@ -403,7 +404,7 @@ class MobilePaymentService {
    * @private
    */
   _handleError(method, error) {
-    console.error(`MobilePaymentService.${method} error:`, error);
+    logger.error(`MobilePaymentService.${method} error:`, error);
     return error instanceof Error ? error : new Error(error);
   }
 }

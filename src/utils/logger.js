@@ -19,7 +19,7 @@ const logFormat = winston.format.combine(
 const logger = winston.createLogger({
   level: config.logging.level,
   format: logFormat,
-  defaultMeta: { service: 'open-wallet' },
+  defaultMeta: { service: 'ocp-sdk' },
   transports: []
 });
 

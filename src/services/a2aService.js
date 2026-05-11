@@ -6,6 +6,7 @@
  */
 
 const { Agent } = require('../models/agent');
+const logger = require('../utils/logger');
 
 class A2AService {
     constructor(walletService, db) {
@@ -94,7 +95,7 @@ class A2AService {
      * @private
      */
     _handleError(method, error) {
-        console.error(`A2AService.${method} error:`, error);
+        logger.error(`A2AService.${method} error:`, error);
         return error instanceof Error ? error : new Error(error);
     }
 }
