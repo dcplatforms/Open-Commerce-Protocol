@@ -82,7 +82,7 @@ describe('MPP402Handler', () => {
         const requestFn = jest.fn().mockResolvedValue(response402);
 
         await expect(mppHandler.executeAutonomousRequest(agent, requestFn, intentMandate))
-          .rejects.toThrow('MPP: Payment amount 500 exceeds intent mandate budget of 100');
+          .rejects.toThrow('Zero Trust Validation Failed: MPP payment amount 500 exceeds intent mandate budget of 100');
     });
 
     it('should throw error if 402 response is missing requirements', async () => {
@@ -96,7 +96,7 @@ describe('MPP402Handler', () => {
         const requestFn = jest.fn().mockResolvedValue(response402);
 
         await expect(mppHandler.executeAutonomousRequest(agent, requestFn, intentMandate))
-          .rejects.toThrow('Incomplete payment requirements in 402 response');
+          .rejects.toThrow('Zero Trust Validation Failed: Incomplete payment requirements in 402 response');
     });
 
     it('should handle 402 thrown as an error (e.g. from axios)', async () => {

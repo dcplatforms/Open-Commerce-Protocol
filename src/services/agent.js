@@ -5,16 +5,17 @@
  * Facilitates agent-to-agent interactions and ensures policy compliance.
  */
 
-const crypto = require('crypto');
-const MandateService = require('./mandate');
-const logger = require('../utils/logger');
+const crypto = require("crypto");
+const MandateService = require("./mandate");
+const logger = require("../utils/logger");
 
 class AgentService {
   constructor(database, config = {}) {
     this.db = database;
     this.config = {
       defaultSpendingLimit: config.defaultSpendingLimit || 1000,
-      defaultAuthorizedCounterparties: config.defaultAuthorizedCounterparties || []
+      defaultAuthorizedCounterparties:
+        config.defaultAuthorizedCounterparties || [],
     };
     this.mandateService = new MandateService(config.mandateConfig);
   }
@@ -28,27 +29,37 @@ class AgentService {
    * @param {Object} params.policy - Agent's policy (spending limits, counterparties)
    * @returns {Promise<Object>} Registered agent
    */
-  async registerAgent({ name, ownerId, walletId, type = 'personal', config: agentConfig }) {
+  async registerAgent({
+    name,
+    ownerId,
+    walletId,
+    type = "personal",
+    config: agentConfig,
+  }) {
     try {
       const newAgent = await this.db.createAgent({
         name,
         ownerId,
         walletId,
         type,
-        status: 'active',
+        status: "active",
         config: {
           limits: {
             daily: agentConfig?.limits?.daily || 0,
-            perTransaction: agentConfig?.limits?.perTransaction || this.config.defaultSpendingLimit
+            perTransaction:
+              agentConfig?.limits?.perTransaction ||
+              this.config.defaultSpendingLimit,
           },
-          authorizedCounterparties: agentConfig?.authorizedCounterparties || this.config.defaultAuthorizedCounterparties,
-          autoApprove: agentConfig?.autoApprove || false
+          authorizedCounterparties:
+            agentConfig?.authorizedCounterparties ||
+            this.config.defaultAuthorizedCounterparties,
+          autoApprove: agentConfig?.autoApprove || false,
         },
-        metadata: {}
+        metadata: {},
       });
       return newAgent;
     } catch (error) {
-      throw this._handleError('registerAgent', error);
+      throw this._handleError("registerAgent", error);
     }
   }
 
@@ -61,11 +72,11 @@ class AgentService {
     try {
       const agent = await this.db.findAgentById(agentId);
       if (!agent) {
-        throw new Error('Agent not found');
+        throw new Error("Agent not found");
       }
       return agent;
     } catch (error) {
-      throw this._handleError('getAgent', error);
+      throw this._handleError("getAgent", error);
     }
   }
 
@@ -77,7 +88,7 @@ class AgentService {
     try {
       return await this.db.findAllAgents(filter);
     } catch (error) {
-      throw this._handleError('getAllAgents', error);
+      throw this._handleError("getAllAgents", error);
     }
   }
 
@@ -93,13 +104,13 @@ class AgentService {
       const updatedAgent = await this.db.updateAgent(agentId, {
         config: {
           ...agent.config,
-          ...newConfig
+          ...newConfig,
         },
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
       return updatedAgent;
     } catch (error) {
-      throw this._handleError('updateAgentPolicy', error);
+      throw this._handleError("updateAgentPolicy", error);
     }
   }
 
@@ -107,10 +118,18 @@ class AgentService {
    * Issue an Intent Mandate for an agent
    * @param {Object} params - Intent parameters
    */
-  async issueIntentMandate({ userDid, agentId, maxBudget, currency, expiration, purposeCode, allowedMerchants }) {
+  async issueIntentMandate({
+    userDid,
+    agentId,
+    maxBudget,
+    currency,
+    expiration,
+    purposeCode,
+    allowedMerchants,
+  }) {
     try {
       const agent = await this.getAgent(agentId);
-      const agentDid = agent.metadata?.get('did') || `did:key:${agentId}`;
+      const agentDid = agent.metadata?.get("did") || `did:key:${agentId}`;
 
       return await this.mandateService.issueIntentMandate({
         userDid,
@@ -119,10 +138,10 @@ class AgentService {
         currency,
         expiration,
         purposeCode,
-        allowedMerchants
+        allowedMerchants,
       });
     } catch (error) {
-      throw this._handleError('issueIntentMandate', error);
+      throw this._handleError("issueIntentMandate", error);
     }
   }
 
@@ -132,15 +151,15 @@ class AgentService {
   async issueAgentVC({ userDid, agentId, capabilities }) {
     try {
       const agent = await this.getAgent(agentId);
-      const agentDid = agent.metadata?.get('did') || `did:key:${agentId}`;
+      const agentDid = agent.metadata?.get("did") || `did:key:${agentId}`;
 
       return await this.mandateService.issueAgentVC({
         userDid,
         agentDid,
-        capabilities
+        capabilities,
       });
     } catch (error) {
-      throw this._handleError('issueAgentVC', error);
+      throw this._handleError("issueAgentVC", error);
     }
   }
 
@@ -162,11 +181,17 @@ class AgentService {
 
     // Basic policy checks (more complex logic would be here)
     if (amount > fromAgent.policy.spendingLimit) {
-      throw new Error(`Transfer amount exceeds spending limit for agent ${fromAgentId}`);
+      throw new Error(
+        `Transfer amount exceeds spending limit for agent ${fromAgentId}`,
+      );
     }
-    if (!fromAgent.policy.authorizedCounterparties.includes(toAgentId) &&
-        fromAgent.policy.authorizedCounterparties.length > 0) {
-      throw new Error(`Agent ${toAgentId} is not an authorized counterparty for ${fromAgentId}`);
+    if (
+      !fromAgent.policy.authorizedCounterparties.includes(toAgentId) &&
+      fromAgent.policy.authorizedCounterparties.length > 0
+    ) {
+      throw new Error(
+        `Agent ${toAgentId} is not an authorized counterparty for ${fromAgentId}`,
+      );
     }
 
     // Simulate transfer success
@@ -176,7 +201,7 @@ class AgentService {
       toAgentId,
       amount,
       currency,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
   }
 
