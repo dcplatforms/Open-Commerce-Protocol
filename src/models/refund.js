@@ -4,156 +4,156 @@
  * Database schema for refund requests and processing.
  */
 
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const refundSchema = new mongoose.Schema({
-  transactionId: {
-    type: String,
-    required: true
+const refundSchema = new mongoose.Schema(
+  {
+    transactionId: {
+      type: String,
+      required: true,
+    },
+    walletId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    currency: {
+      type: String,
+      default: "USD",
+      uppercase: true,
+    },
+    status: {
+      type: String,
+      required: true,
+      enum: ["pending", "approved", "rejected", "completed", "failed"],
+      default: "pending",
+      index: true,
+    },
+    reason: {
+      type: String,
+      required: true,
+      enum: [
+        "customer_request",
+        "duplicate_charge",
+        "fraudulent",
+        "service_issue",
+        "other",
+      ],
+    },
+    notes: {
+      type: String,
+      maxlength: 1000,
+    },
+    requestedBy: {
+      userId: String,
+      role: String,
+      name: String,
+    },
+    approvedBy: {
+      adminId: String,
+      name: String,
+    },
+    rejectedBy: {
+      adminId: String,
+      name: String,
+      reason: String,
+    },
+    metadata: {
+      type: Map,
+      of: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    approvedAt: {
+      type: Date,
+    },
+    rejectedAt: {
+      type: Date,
+    },
+    completedAt: {
+      type: Date,
+    },
+    failedAt: {
+      type: Date,
+    },
+    errorMessage: {
+      type: String,
+    },
   },
-  walletId: {
-    type: String,
-    required: true,
-    index: true
+  {
+    timestamps: true,
+    collection: "refunds",
   },
-  amount: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  currency: {
-    type: String,
-    default: 'USD',
-    uppercase: true
-  },
-  status: {
-    type: String,
-    required: true,
-    enum: ['pending', 'approved', 'rejected', 'completed', 'failed'],
-    default: 'pending',
-    index: true
-  },
-  reason: {
-    type: String,
-    required: true,
-    enum: [
-      'customer_request',
-      'duplicate_charge',
-      'fraudulent',
-      'service_issue',
-      'other'
-    ]
-  },
-  notes: {
-    type: String,
-    maxlength: 1000
-  },
-  requestedBy: {
-    userId: String,
-    role: String,
-    name: String
-  },
-  approvedBy: {
-    adminId: String,
-    name: String
-  },
-  rejectedBy: {
-    adminId: String,
-    name: String,
-    reason: String
-  },
-  metadata: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed,
-    default: {}
-  },
-  approvedAt: {
-    type: Date
-  },
-  rejectedAt: {
-    type: Date
-  },
-  completedAt: {
-    type: Date
-  },
-  failedAt: {
-    type: Date
-  },
-  errorMessage: {
-    type: String
-  }
-}, {
-  timestamps: true,
-  collection: 'refunds'
-});
+);
 
 // Indexes
 refundSchema.index({ walletId: 1, createdAt: -1 });
 refundSchema.index({ status: 1, createdAt: -1 });
 
 // Virtual for refund ID
-refundSchema.virtual('id').get(function() {
+refundSchema.virtual("id").get(function () {
   return this._id.toString();
 });
 
-refundSchema.set('toJSON', {
+refundSchema.set("toJSON", {
   virtuals: true,
   transform: (doc, ret) => {
     delete ret._id;
     delete ret.__v;
     return ret;
-  }
+  },
 });
 
 // Instance methods
-refundSchema.methods.approve = function(adminId, adminName) {
-  this.status = 'approved';
+refundSchema.methods.approve = function (adminId, adminName) {
+  this.status = "approved";
   this.approvedBy = { adminId, name: adminName };
   this.approvedAt = new Date();
 };
 
-refundSchema.methods.reject = function(adminId, adminName, reason) {
-  this.status = 'rejected';
+refundSchema.methods.reject = function (adminId, adminName, reason) {
+  this.status = "rejected";
   this.rejectedBy = { adminId, name: adminName, reason };
   this.rejectedAt = new Date();
 };
 
-refundSchema.methods.markCompleted = function() {
-  this.status = 'completed';
+refundSchema.methods.markCompleted = function () {
+  this.status = "completed";
   this.completedAt = new Date();
 };
 
-refundSchema.methods.markFailed = function(errorMessage) {
-  this.status = 'failed';
+refundSchema.methods.markFailed = function (errorMessage) {
+  this.status = "failed";
   this.errorMessage = errorMessage;
   this.failedAt = new Date();
 };
 
 // Static methods
-refundSchema.statics.findPending = function(options = {}) {
+refundSchema.statics.findPending = function (options = {}) {
   const { page = 1, limit = 20 } = options;
   const skip = (page - 1) * limit;
 
-  return this.find({ status: 'pending' })
+  return this.find({ status: "pending" })
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
 };
 
-refundSchema.statics.findByWallet = function(walletId, options = {}) {
+refundSchema.statics.findByWallet = function (walletId, options = {}) {
   const { page = 1, limit = 20, status } = options;
   const skip = (page - 1) * limit;
 
   const query = { walletId };
   if (status) query.status = status;
 
-  return this.find(query)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+  return this.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
 };
 
-refundSchema.statics.getStats = async function(dateFrom, dateTo) {
+refundSchema.statics.getStats = async function (dateFrom, dateTo) {
   const matchQuery = {};
 
   if (dateFrom || dateTo) {
@@ -166,17 +166,17 @@ refundSchema.statics.getStats = async function(dateFrom, dateTo) {
     { $match: matchQuery },
     {
       $group: {
-        _id: '$status',
+        _id: "$status",
         count: { $sum: 1 },
-        totalAmount: { $sum: '$amount' }
-      }
-    }
+        totalAmount: { $sum: "$amount" },
+      },
+    },
   ]);
 
   return stats.reduce((acc, stat) => {
     acc[stat._id] = {
       count: stat.count,
-      totalAmount: stat.totalAmount
+      totalAmount: stat.totalAmount,
     };
     return acc;
   }, {});
@@ -216,10 +216,10 @@ CREATE TRIGGER update_refunds_updated_at BEFORE UPDATE ON refunds
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 `;
 
-const Refund = mongoose.model('Refund', refundSchema);
+const Refund = mongoose.model("Refund", refundSchema);
 
 module.exports = {
   Refund,
   refundSchema,
-  postgresqlSchema
+  postgresqlSchema,
 };

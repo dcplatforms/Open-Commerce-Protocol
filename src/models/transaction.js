@@ -4,103 +4,114 @@
  * Database schema for transaction records with complete audit trail.
  */
 
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const transactionSchema = new mongoose.Schema({
-  walletId: {
-    type: String,
-    required: true,
-    index: true
+const transactionSchema = new mongoose.Schema(
+  {
+    walletId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    type: {
+      type: String,
+      required: true,
+      enum: [
+        "credit",
+        "debit",
+        "transfer_in",
+        "transfer_out",
+        "refund",
+        "a2a_transfer",
+        "blockchain_transfer",
+      ],
+      index: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+    },
+    currency: {
+      type: String,
+      default: "USD",
+      uppercase: true,
+    },
+    status: {
+      type: String,
+      required: true,
+      enum: ["pending", "completed", "failed", "cancelled"],
+      default: "pending",
+      index: true,
+    },
+    description: {
+      type: String,
+      required: true,
+      maxlength: 500,
+    },
+    paymentToken: {
+      type: String,
+      sparse: true,
+    },
+    transferId: {
+      type: String,
+      sparse: true,
+    },
+    refundId: {
+      type: String,
+      sparse: true,
+      index: true,
+    },
+    agentId: {
+      type: String,
+      sparse: true,
+      index: true,
+    },
+    counterpartyAgentId: {
+      type: String,
+      sparse: true,
+      index: true,
+    },
+    ucpPayload: {
+      type: Map,
+      of: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    hash: {
+      type: String,
+      sparse: true,
+      index: true,
+    },
+    network: {
+      type: String,
+      sparse: true,
+    },
+    gasUsed: {
+      type: Number,
+      sparse: true,
+    },
+    metadata: {
+      type: Map,
+      of: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    balanceAfter: {
+      type: Number,
+    },
+    errorMessage: {
+      type: String,
+    },
+    completedAt: {
+      type: Date,
+    },
+    failedAt: {
+      type: Date,
+    },
   },
-  type: {
-    type: String,
-    required: true,
-    enum: ['credit', 'debit', 'transfer_in', 'transfer_out', 'refund', 'a2a_transfer', 'blockchain_transfer'],
-    index: true
+  {
+    timestamps: true,
+    collection: "transactions",
   },
-  amount: {
-    type: Number,
-    required: true
-  },
-  currency: {
-    type: String,
-    default: 'USD',
-    uppercase: true
-  },
-  status: {
-    type: String,
-    required: true,
-    enum: ['pending', 'completed', 'failed', 'cancelled'],
-    default: 'pending',
-    index: true
-  },
-  description: {
-    type: String,
-    required: true,
-    maxlength: 500
-  },
-  paymentToken: {
-    type: String,
-    sparse: true
-  },
-  transferId: {
-    type: String,
-    sparse: true
-  },
-  refundId: {
-    type: String,
-    sparse: true,
-    index: true
-  },
-  agentId: {
-    type: String,
-    sparse: true,
-    index: true
-  },
-  counterpartyAgentId: {
-    type: String,
-    sparse: true,
-    index: true
-  },
-  ucpPayload: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed,
-    default: {}
-  },
-  hash: {
-    type: String,
-    sparse: true,
-    index: true
-  },
-  network: {
-    type: String,
-    sparse: true
-  },
-  gasUsed: {
-    type: Number,
-    sparse: true
-  },
-  metadata: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed,
-    default: {}
-  },
-  balanceAfter: {
-    type: Number
-  },
-  errorMessage: {
-    type: String
-  },
-  completedAt: {
-    type: Date
-  },
-  failedAt: {
-    type: Date
-  }
-}, {
-  timestamps: true,
-  collection: 'transactions'
-});
+);
 
 // Indexes for common queries
 transactionSchema.index({ walletId: 1, createdAt: -1 });
@@ -109,36 +120,36 @@ transactionSchema.index({ walletId: 1, status: 1 });
 transactionSchema.index({ createdAt: -1 });
 
 // Virtual for transaction ID
-transactionSchema.virtual('id').get(function () {
+transactionSchema.virtual("id").get(function () {
   return this._id.toString();
 });
 
 // Ensure virtuals are included in JSON
-transactionSchema.set('toJSON', {
+transactionSchema.set("toJSON", {
   virtuals: true,
   transform: (doc, ret) => {
     delete ret._id;
     delete ret.__v;
     return ret;
-  }
+  },
 });
 
 // Instance methods
 transactionSchema.methods.isCompleted = function () {
-  return this.status === 'completed';
+  return this.status === "completed";
 };
 
 transactionSchema.methods.isPending = function () {
-  return this.status === 'pending';
+  return this.status === "pending";
 };
 
 transactionSchema.methods.markCompleted = function () {
-  this.status = 'completed';
+  this.status = "completed";
   this.completedAt = new Date();
 };
 
 transactionSchema.methods.markFailed = function (errorMessage) {
-  this.status = 'failed';
+  this.status = "failed";
   this.errorMessage = errorMessage;
   this.failedAt = new Date();
 };
@@ -152,18 +163,19 @@ transactionSchema.statics.findByWallet = function (walletId, options = {}) {
   if (type) query.type = type;
   if (status) query.status = status;
 
-  return this.find(query)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+  return this.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
 };
 
 transactionSchema.statics.findByTransfer = function (transferId) {
   return this.find({ transferId });
 };
 
-transactionSchema.statics.getWalletStats = async function (walletId, dateFrom, dateTo) {
-  const matchQuery = { walletId, status: 'completed' };
+transactionSchema.statics.getWalletStats = async function (
+  walletId,
+  dateFrom,
+  dateTo,
+) {
+  const matchQuery = { walletId, status: "completed" };
 
   if (dateFrom || dateTo) {
     matchQuery.completedAt = {};
@@ -175,45 +187,46 @@ transactionSchema.statics.getWalletStats = async function (walletId, dateFrom, d
     { $match: matchQuery },
     {
       $group: {
-        _id: '$type',
+        _id: "$type",
         count: { $sum: 1 },
-        totalAmount: { $sum: '$amount' },
-        avgAmount: { $avg: '$amount' }
-      }
-    }
+        totalAmount: { $sum: "$amount" },
+        avgAmount: { $avg: "$amount" },
+      },
+    },
   ]);
 
   return stats.reduce((acc, stat) => {
     acc[stat._id] = {
       count: stat.count,
       totalAmount: stat.totalAmount,
-      avgAmount: stat.avgAmount
+      avgAmount: stat.avgAmount,
     };
     return acc;
   }, {});
 };
 
 transactionSchema.statics.getRecentActivity = function (limit = 10) {
-  return this.find({ status: 'completed' })
+  return this.find({ status: "completed" })
     .sort({ completedAt: -1 })
     .limit(limit);
 };
 
-transactionSchema.statics.getVolumeByPeriod = async function (period = 'day') {
-  const groupBy = period === 'day' ?
-    { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } :
-    { $dateToString: { format: '%Y-%m', date: '$createdAt' } };
+transactionSchema.statics.getVolumeByPeriod = async function (period = "day") {
+  const groupBy =
+    period === "day"
+      ? { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }
+      : { $dateToString: { format: "%Y-%m", date: "$createdAt" } };
 
   return this.aggregate([
-    { $match: { status: 'completed' } },
+    { $match: { status: "completed" } },
     {
       $group: {
         _id: groupBy,
         count: { $sum: 1 },
-        volume: { $sum: { $abs: '$amount' } }
-      }
+        volume: { $sum: { $abs: "$amount" } },
+      },
     },
-    { $sort: { _id: 1 } }
+    { $sort: { _id: 1 } },
   ]);
 };
 
@@ -250,10 +263,10 @@ CREATE TRIGGER update_transactions_updated_at BEFORE UPDATE ON transactions
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 `;
 
-const Transaction = mongoose.model('Transaction', transactionSchema);
+const Transaction = mongoose.model("Transaction", transactionSchema);
 
 module.exports = {
   Transaction,
   transactionSchema,
-  postgresqlSchema
+  postgresqlSchema,
 };

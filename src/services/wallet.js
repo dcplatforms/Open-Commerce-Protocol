@@ -5,21 +5,21 @@
  * transaction processing, and wallet lifecycle management.
  */
 
-const crypto = require('crypto');
-const logger = require('../utils/logger');
+const crypto = require("crypto");
+const logger = require("../utils/logger");
 
 class WalletService {
   constructor(database, config = {}) {
     this.db = database;
     this.config = {
-      defaultCurrency: config.defaultCurrency || 'USD',
+      defaultCurrency: config.defaultCurrency || "USD",
       minBalance: config.minBalance || 0,
       maxBalance: config.maxBalance || 10000,
       autoTopUp: config.autoTopUp || {
         enabled: false,
         threshold: 10,
-        amount: 50
-      }
+        amount: 50,
+      },
     };
   }
 
@@ -36,16 +36,20 @@ class WalletService {
       // Check if user already has a wallet
       const existingWallet = await this.db.findWalletByUserId(userId);
       if (existingWallet) {
-        throw new Error('User already has a wallet');
+        throw new Error("User already has a wallet");
       }
 
       // Validate initial balance
       if (initialBalance < this.config.minBalance) {
-        throw new Error(`Initial balance must be at least ${this.config.minBalance}`);
+        throw new Error(
+          `Initial balance must be at least ${this.config.minBalance}`,
+        );
       }
 
       if (initialBalance > this.config.maxBalance) {
-        throw new Error(`Initial balance cannot exceed ${this.config.maxBalance}`);
+        throw new Error(
+          `Initial balance cannot exceed ${this.config.maxBalance}`,
+        );
       }
 
       // Create wallet
@@ -53,28 +57,28 @@ class WalletService {
         userId,
         balance: initialBalance,
         currency: currency || this.config.defaultCurrency,
-        status: 'active',
+        status: "active",
         metadata: {},
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       // Create initial transaction if balance > 0
       if (initialBalance > 0) {
         await this.db.createTransaction({
           walletId: wallet.id,
-          type: 'credit',
+          type: "credit",
           amount: initialBalance,
-          description: 'Initial wallet funding',
-          status: 'completed',
-          metadata: { source: 'wallet_creation' },
-          createdAt: new Date()
+          description: "Initial wallet funding",
+          status: "completed",
+          metadata: { source: "wallet_creation" },
+          createdAt: new Date(),
         });
       }
 
       return wallet;
     } catch (error) {
-      throw this._handleError('createWallet', error);
+      throw this._handleError("createWallet", error);
     }
   }
 
@@ -87,11 +91,11 @@ class WalletService {
     try {
       const wallet = await this.db.findWalletById(walletId);
       if (!wallet) {
-        throw new Error('Wallet not found');
+        throw new Error("Wallet not found");
       }
       return wallet;
     } catch (error) {
-      throw this._handleError('getWallet', error);
+      throw this._handleError("getWallet", error);
     }
   }
 
@@ -104,11 +108,11 @@ class WalletService {
     try {
       const wallet = await this.db.findWalletByUserId(userId);
       if (!wallet) {
-        throw new Error('Wallet not found for user');
+        throw new Error("Wallet not found for user");
       }
       return wallet;
     } catch (error) {
-      throw this._handleError('getWalletByUserId', error);
+      throw this._handleError("getWalletByUserId", error);
     }
   }
 
@@ -122,35 +126,44 @@ class WalletService {
    * @param {Object} params.metadata - Optional metadata
    * @returns {Promise<Object>} Transaction result
    */
-  async addFunds({ walletId, amount, paymentToken, description, metadata = {} }) {
+  async addFunds({
+    walletId,
+    amount,
+    paymentToken,
+    description,
+    metadata = {},
+  }) {
     try {
       // Validate amount
       if (amount <= 0) {
-        throw new Error('Amount must be greater than 0');
+        throw new Error("Amount must be greater than 0");
       }
 
       // Get wallet
       const wallet = await this.getWallet(walletId);
-      if (wallet.status !== 'active') {
-        throw new Error('Wallet is not active');
+      if (wallet.status !== "active") {
+        throw new Error("Wallet is not active");
       }
 
       // Check if new balance would exceed max
       const newBalance = wallet.balance + amount;
       if (newBalance > this.config.maxBalance) {
-        throw new Error(`Balance would exceed maximum of ${this.config.maxBalance}`);
+        throw new Error(
+          `Balance would exceed maximum of ${this.config.maxBalance}`,
+        );
       }
 
       // Extract top-level fields from metadata if they exist
-      const { agentId, counterpartyAgentId, ucpPayload, ...restMetadata } = metadata;
+      const { agentId, counterpartyAgentId, ucpPayload, ...restMetadata } =
+        metadata;
 
       // Create transaction
       const transaction = await this.db.createTransaction({
         walletId,
-        type: 'credit',
+        type: "credit",
         amount,
-        description: description || 'Add funds',
-        status: 'pending',
+        description: description || "Add funds",
+        status: "pending",
         paymentToken,
         agentId,
         counterpartyAgentId,
@@ -158,9 +171,9 @@ class WalletService {
         metadata: {
           ...restMetadata,
           previous_balance: wallet.balance,
-          new_balance: newBalance
+          new_balance: newBalance,
         },
-        createdAt: new Date()
+        createdAt: new Date(),
       });
 
       // Update wallet balance atomically
@@ -168,18 +181,18 @@ class WalletService {
 
       // Update transaction status
       await this.db.updateTransaction(transaction.id, {
-        status: 'completed',
-        completedAt: new Date()
+        status: "completed",
+        completedAt: new Date(),
       });
 
       return {
         transactionId: transaction.id,
         amount,
         newBalance,
-        status: 'completed'
+        status: "completed",
       };
     } catch (error) {
-      throw this._handleError('addFunds', error);
+      throw this._handleError("addFunds", error);
     }
   }
 
@@ -196,41 +209,42 @@ class WalletService {
     try {
       // Validate amount
       if (amount <= 0) {
-        throw new Error('Amount must be greater than 0');
+        throw new Error("Amount must be greater than 0");
       }
 
       // Get wallet
       const wallet = await this.getWallet(walletId);
-      if (wallet.status !== 'active') {
-        throw new Error('Wallet is not active');
+      if (wallet.status !== "active") {
+        throw new Error("Wallet is not active");
       }
 
       // Check sufficient balance
       if (wallet.balance < amount) {
-        throw new Error('Insufficient balance');
+        throw new Error("Insufficient balance");
       }
 
       const newBalance = wallet.balance - amount;
 
       // Extract top-level fields from metadata if they exist
-      const { agentId, counterpartyAgentId, ucpPayload, ...restMetadata } = metadata;
+      const { agentId, counterpartyAgentId, ucpPayload, ...restMetadata } =
+        metadata;
 
       // Create transaction
       const transaction = await this.db.createTransaction({
         walletId,
-        type: 'debit',
+        type: "debit",
         amount: -amount,
-        description: description || 'Payment',
-        status: 'pending',
+        description: description || "Payment",
+        status: "pending",
         agentId,
         counterpartyAgentId,
         ucpPayload,
         metadata: {
           ...restMetadata,
           previous_balance: wallet.balance,
-          new_balance: newBalance
+          new_balance: newBalance,
         },
-        createdAt: new Date()
+        createdAt: new Date(),
       });
 
       // Update wallet balance atomically
@@ -238,12 +252,15 @@ class WalletService {
 
       // Update transaction status
       await this.db.updateTransaction(transaction.id, {
-        status: 'completed',
-        completedAt: new Date()
+        status: "completed",
+        completedAt: new Date(),
       });
 
       // Check if auto top-up is needed
-      if (this.config.autoTopUp.enabled && newBalance < this.config.autoTopUp.threshold) {
+      if (
+        this.config.autoTopUp.enabled &&
+        newBalance < this.config.autoTopUp.threshold
+      ) {
         await this._triggerAutoTopUp(walletId, newBalance);
       }
 
@@ -251,10 +268,10 @@ class WalletService {
         transactionId: transaction.id,
         amount: -amount,
         newBalance,
-        status: 'completed'
+        status: "completed",
       };
     } catch (error) {
-      throw this._handleError('deductFunds', error);
+      throw this._handleError("deductFunds", error);
     }
   }
 
@@ -267,14 +284,20 @@ class WalletService {
    * @param {string} params.description - Transfer description
    * @returns {Promise<Object>} Transfer result
    */
-  async transfer({ fromWalletId, toWalletId, amount, description, metadata = {} }) {
+  async transfer({
+    fromWalletId,
+    toWalletId,
+    amount,
+    description,
+    metadata = {},
+  }) {
     try {
       if (amount <= 0) {
-        throw new Error('Amount must be greater than 0');
+        throw new Error("Amount must be greater than 0");
       }
 
       if (fromWalletId === toWalletId) {
-        throw new Error('Cannot transfer to same wallet');
+        throw new Error("Cannot transfer to same wallet");
       }
 
       // Start transaction
@@ -285,7 +308,11 @@ class WalletService {
         walletId: fromWalletId,
         amount,
         description: description || `Transfer to wallet ${toWalletId}`,
-        metadata: { ...metadata, transfer_id: transferId, type: 'transfer_out' }
+        metadata: {
+          ...metadata,
+          transfer_id: transferId,
+          type: "transfer_out",
+        },
       });
 
       // Add to destination wallet
@@ -294,7 +321,7 @@ class WalletService {
         amount,
         paymentToken: null,
         description: description || `Transfer from wallet ${fromWalletId}`,
-        metadata: { ...metadata, transfer_id: transferId, type: 'transfer_in' }
+        metadata: { ...metadata, transfer_id: transferId, type: "transfer_in" },
       });
 
       return {
@@ -304,10 +331,10 @@ class WalletService {
         amount,
         debitTransactionId: debit.transactionId,
         creditTransactionId: credit.transactionId,
-        status: 'completed'
+        status: "completed",
       };
     } catch (error) {
-      throw this._handleError('transfer', error);
+      throw this._handleError("transfer", error);
     }
   }
 
@@ -325,7 +352,7 @@ class WalletService {
         type = null,
         status = null,
         dateFrom = null,
-        dateTo = null
+        dateTo = null,
       } = options;
 
       const result = await this.db.findTransactions({
@@ -335,12 +362,12 @@ class WalletService {
         dateFrom,
         dateTo,
         page,
-        limit
+        limit,
       });
 
       return result;
     } catch (error) {
-      throw this._handleError('getTransactions', error);
+      throw this._handleError("getTransactions", error);
     }
   }
 
@@ -352,21 +379,23 @@ class WalletService {
    */
   async updateWalletStatus(walletId, status) {
     try {
-      const validStatuses = ['active', 'suspended', 'closed'];
+      const validStatuses = ["active", "suspended", "closed"];
       if (!validStatuses.includes(status)) {
-        throw new Error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+        throw new Error(
+          `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
+        );
       }
 
       const wallet = await this.getWallet(walletId);
 
       await this.db.updateWallet(walletId, {
         status,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       return { ...wallet, status };
     } catch (error) {
-      throw this._handleError('updateWalletStatus', error);
+      throw this._handleError("updateWalletStatus", error);
     }
   }
 
@@ -388,10 +417,10 @@ class WalletService {
         totalDebits: stats.totalDebits || 0,
         transactionCount: stats.transactionCount || 0,
         averageTransaction: stats.averageTransaction || 0,
-        lastTransaction: stats.lastTransaction || null
+        lastTransaction: stats.lastTransaction || null,
       };
     } catch (error) {
-      throw this._handleError('getWalletStats', error);
+      throw this._handleError("getWalletStats", error);
     }
   }
 
@@ -403,12 +432,14 @@ class WalletService {
     try {
       // This would integrate with a stored payment method
       // For now, just log the event
-      logger.info(`Auto top-up triggered for wallet ${walletId}. Current balance: ${currentBalance}`);
+      logger.info(
+        `Auto top-up triggered for wallet ${walletId}. Current balance: ${currentBalance}`,
+      );
 
       // You would implement actual top-up logic here
       // Example: await this.addFunds({ walletId, amount: this.config.autoTopUp.amount, ... });
     } catch (error) {
-      logger.error('Auto top-up failed:', error);
+      logger.error("Auto top-up failed:", error);
     }
   }
 
@@ -417,7 +448,7 @@ class WalletService {
    * @private
    */
   _generateTransferId() {
-    return `transfer_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
+    return `transfer_${Date.now()}_${crypto.randomBytes(8).toString("hex")}`;
   }
 
   /**

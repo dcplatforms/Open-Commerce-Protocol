@@ -3,13 +3,13 @@ const {
   GraphQLObjectType,
   GraphQLString,
   GraphQLNonNull,
-} = require('graphql');
-const WalletService = require('../services/wallet');
-const db = require('../utils/database');
+} = require("graphql");
+const WalletService = require("../services/wallet");
+const db = require("../utils/database");
 
 module.exports = (walletService) => {
   const WalletType = new GraphQLObjectType({
-    name: 'Wallet',
+    name: "Wallet",
     fields: {
       id: { type: new GraphQLNonNull(GraphQLString) },
       userId: { type: new GraphQLNonNull(GraphQLString) },
@@ -20,7 +20,7 @@ module.exports = (walletService) => {
   });
 
   const RootQueryType = new GraphQLObjectType({
-    name: 'Query',
+    name: "Query",
     fields: {
       wallet: {
         type: WalletType,

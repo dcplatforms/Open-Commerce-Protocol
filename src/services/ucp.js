@@ -6,8 +6,8 @@
  * system-specific transaction logic via A2AService.
  */
 
-const Joi = require('joi');
-const logger = require('../utils/logger');
+const Joi = require("joi");
+const logger = require("../utils/logger");
 
 class UCPService {
   constructor(a2aService, config = {}) {
@@ -17,21 +17,25 @@ class UCPService {
     // Standard UCP Schema
     this.ucpIntentSchema = Joi.object({
       ver: Joi.string().required(),
-      intent: Joi.string().valid('transfer', 'payment', 'purchase', 'request', 'offer').required(),
+      intent: Joi.string()
+        .valid("transfer", "payment", "purchase", "request", "offer")
+        .required(),
       sender: Joi.object({
         agent_id: Joi.string().required(),
-        wallet_id: Joi.string().optional()
+        wallet_id: Joi.string().optional(),
       }).required(),
       recipient: Joi.object({
         agent_id: Joi.string().required(),
-        wallet_id: Joi.string().optional()
+        wallet_id: Joi.string().optional(),
       }).optional(),
       amount: Joi.object({
         value: Joi.number().positive().required(),
-        currency: Joi.string().default('USD')
+        currency: Joi.string().default("USD"),
       }).optional(),
       data: Joi.object().optional(),
-      timestamp: Joi.date().iso().default(() => new Date())
+      timestamp: Joi.date()
+        .iso()
+        .default(() => new Date()),
     });
   }
 
@@ -42,26 +46,38 @@ class UCPService {
   async processPayload(payload) {
     try {
       // 1. Validate the UCP intent against schema
-      const { error, value } = this.ucpIntentSchema.validate(payload, { stripUnknown: true });
+      const { error, value } = this.ucpIntentSchema.validate(payload, {
+        stripUnknown: true,
+      });
       if (error) {
-        throw new Error(`UCP Intent validation failed: ${error.details.map(x => x.message).join(', ')}`);
+        throw new Error(
+          `Zero Trust Validation Failed: UCP Intent validation failed: ${error.details.map((x) => x.message).join(", ")}`,
+        );
       }
 
       const validatedPayload = value;
       const { intent } = validatedPayload;
 
       switch (intent) {
-        case 'transfer':
-        case 'payment':
+        case "transfer":
+        case "payment":
           return this._handleTransfer(validatedPayload);
-        case 'purchase':
+        case "purchase":
           // Future implementation: integration with Inventory/Order services
-          return { status: 'success', message: 'Purchase intent received (simulation)', payload: validatedPayload };
+          return {
+            status: "success",
+            message: "Purchase intent received (simulation)",
+            payload: validatedPayload,
+          };
         default:
-          return { status: 'success', message: `UCP intent '${intent}' received and logged.`, payload: validatedPayload };
+          return {
+            status: "success",
+            message: `UCP intent '${intent}' received and logged.`,
+            payload: validatedPayload,
+          };
       }
     } catch (error) {
-      throw this._handleError('processPayload', error);
+      throw this._handleError("processPayload", error);
     }
   }
 
@@ -73,17 +89,17 @@ class UCPService {
     const { sender, recipient, amount } = payload;
 
     if (!recipient?.agent_id) {
-      throw new Error('Missing recipient agent_id for transfer');
+      throw new Error("Missing recipient agent_id for transfer");
     }
     if (!amount?.value) {
-      throw new Error('Missing amount value');
+      throw new Error("Missing amount value");
     }
 
     return this.a2aService.executeTransfer({
       fromAgentId: sender.agent_id,
       toAgentId: recipient.agent_id,
       amount: amount.value,
-      ucpPayload: payload
+      ucpPayload: payload,
     });
   }
 
@@ -97,25 +113,28 @@ class UCPService {
       type: "object",
       properties: {
         ver: { type: "string" },
-        intent: { type: "string", enum: ["transfer", "payment", "purchase", "request", "offer"] },
+        intent: {
+          type: "string",
+          enum: ["transfer", "payment", "purchase", "request", "offer"],
+        },
         sender: {
           type: "object",
           properties: { agent_id: { type: "string" } },
-          required: ["agent_id"]
+          required: ["agent_id"],
         },
         recipient: {
           type: "object",
-          properties: { agent_id: { type: "string" } }
+          properties: { agent_id: { type: "string" } },
         },
         amount: {
           type: "object",
           properties: {
             value: { type: "number" },
-            currency: { type: "string" }
-          }
-        }
+            currency: { type: "string" },
+          },
+        },
       },
-      required: ["ver", "intent", "sender"]
+      required: ["ver", "intent", "sender"],
     };
   }
 
