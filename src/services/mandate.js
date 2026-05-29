@@ -6,15 +6,18 @@
  * 'chain of evidence' for autonomous agent transactions.
  */
 
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const logger = require('../utils/logger');
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const logger = require("../utils/logger");
 
 class MandateService {
   constructor(config = {}) {
-    this.issuer = config.issuer || 'did:web:open-commerce-protocol.io';
+    this.issuer = config.issuer || "did:web:open-commerce-protocol.io";
     // In a real implementation, this would be a private key from a secure enclave
-    this.signingKey = config.signingKey || process.env.MANDATE_SIGNING_KEY || 'default-secret-key';
+    this.signingKey =
+      config.signingKey ||
+      process.env.MANDATE_SIGNING_KEY ||
+      "default-secret-key";
   }
 
   /**
@@ -22,25 +25,33 @@ class MandateService {
    * @param {Object} params - Mandate parameters
    * @returns {Promise<string>} Signed JWT Mandate
    */
-  async issueIntentMandate({ userDid, agentDid, maxBudget, currency = 'USD', expiration, purposeCode, allowedMerchants = [] }) {
+  async issueIntentMandate({
+    userDid,
+    agentDid,
+    maxBudget,
+    currency = "USD",
+    expiration,
+    purposeCode,
+    allowedMerchants = [],
+  }) {
     const payload = {
       iss: this.issuer,
       sub: agentDid,
       user_did: userDid,
       agent_did: agentDid,
-      mandate_id: `mandate_${crypto.randomBytes(8).toString('hex')}`,
+      mandate_id: `mandate_${crypto.randomBytes(8).toString("hex")}`,
       max_budget: {
         value: maxBudget,
-        currency
+        currency,
       },
-      exp: expiration || Math.floor(Date.now() / 1000) + (60 * 60 * 24), // Default 24h
+      exp: expiration || Math.floor(Date.now() / 1000) + 60 * 60 * 24, // Default 24h
       purpose_code: purposeCode,
       allowed_merchants: allowedMerchants,
       iat: Math.floor(Date.now() / 1000),
-      type: 'intent_mandate'
+      type: "intent_mandate",
     };
 
-    return jwt.sign(payload, this.signingKey, { algorithm: 'HS256' });
+    return jwt.sign(payload, this.signingKey, { algorithm: "HS256" });
   }
 
   /**
@@ -48,7 +59,12 @@ class MandateService {
    * @param {Object} params - Cart parameters
    * @returns {Promise<string>} Signed JWT Cart Mandate
    */
-  async issueCartMandate({ intentMandate, cartItems, totalPrice, merchantDid }) {
+  async issueCartMandate({
+    intentMandate,
+    cartItems,
+    totalPrice,
+    merchantDid,
+  }) {
     const decodedIntent = await this.verifyMandate(intentMandate);
 
     if (decodedIntent.type !== 'intent_mandate') {
@@ -66,9 +82,10 @@ class MandateService {
     }
 
     // Create cryptographic hash of cart
-    const cartHash = crypto.createHash('sha256')
+    const cartHash = crypto
+      .createHash("sha256")
       .update(JSON.stringify({ items: cartItems, total: totalPrice }))
-      .digest('hex');
+      .digest("hex");
 
     const payload = {
       iss: this.issuer,
@@ -79,10 +96,10 @@ class MandateService {
       merchant_did: merchantDid,
       iat: Math.floor(Date.now() / 1000),
       exp: decodedIntent.exp, // Inherit expiration from intent
-      type: 'cart_mandate'
+      type: "cart_mandate",
     };
 
-    return jwt.sign(payload, this.signingKey, { algorithm: 'HS256' });
+    return jwt.sign(payload, this.signingKey, { algorithm: "HS256" });
   }
 
   /**
@@ -92,7 +109,7 @@ class MandateService {
    */
   async verifyMandate(token) {
     try {
-      return jwt.verify(token, this.signingKey, { algorithms: ['HS256'] });
+      return jwt.verify(token, this.signingKey, { algorithms: ["HS256"] });
     } catch (error) {
       throw new Error(`Zero Trust Validation Failed: Mandate verification failed: ${error.message}`);
     }
@@ -108,20 +125,20 @@ class MandateService {
       sub: agentDid,
       nbf: Math.floor(Date.now() / 1000),
       vc: {
-        '@context': [
-          'https://www.w3.org/2018/credentials/v1',
-          'https://open-commerce-protocol.io/contexts/agent/v1'
+        "@context": [
+          "https://www.w3.org/2018/credentials/v1",
+          "https://open-commerce-protocol.io/contexts/agent/v1",
         ],
-        type: ['VerifiableCredential', 'AgentAuthorityCredential'],
+        type: ["VerifiableCredential", "AgentAuthorityCredential"],
         credentialSubject: {
           id: agentDid,
           authorizedBy: userDid,
-          capabilities: capabilities
-        }
-      }
+          capabilities: capabilities,
+        },
+      },
     };
 
-    return jwt.sign(payload, this.signingKey, { algorithm: 'HS256' });
+    return jwt.sign(payload, this.signingKey, { algorithm: "HS256" });
   }
 
   /**

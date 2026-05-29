@@ -5,9 +5,9 @@
  * Processes encrypted payment data and creates secure tokens.
  */
 
-const TokenizationService = require('./tokenization');
-const crypto = require('crypto');
-const logger = require('../utils/logger');
+const TokenizationService = require("./tokenization");
+const crypto = require("crypto");
+const logger = require("../utils/logger");
 
 class MobilePaymentService {
   constructor(tokenizationService, walletService, config = {}) {
@@ -15,16 +15,25 @@ class MobilePaymentService {
     this.wallet = walletService;
     this.config = {
       applePay: {
-        merchantId: config.applePay?.merchantId || process.env.APPLE_PAY_MERCHANT_ID,
-        merchantName: config.applePay?.merchantName || 'Open Commerce Initiative (OCI)',
-        countryCode: config.applePay?.countryCode || 'US',
-        supportedNetworks: config.applePay?.supportedNetworks || ['visa', 'mastercard', 'amex', 'discover']
+        merchantId:
+          config.applePay?.merchantId || process.env.APPLE_PAY_MERCHANT_ID,
+        merchantName:
+          config.applePay?.merchantName || "Open Commerce Initiative (OCI)",
+        countryCode: config.applePay?.countryCode || "US",
+        supportedNetworks: config.applePay?.supportedNetworks || [
+          "visa",
+          "mastercard",
+          "amex",
+          "discover",
+        ],
       },
       googlePay: {
-        merchantId: config.googlePay?.merchantId || process.env.GOOGLE_PAY_MERCHANT_ID,
-        merchantName: config.googlePay?.merchantName || 'Open Commerce Initiative (OCI)',
-        environment: config.googlePay?.environment || 'PRODUCTION'
-      }
+        merchantId:
+          config.googlePay?.merchantId || process.env.GOOGLE_PAY_MERCHANT_ID,
+        merchantName:
+          config.googlePay?.merchantName || "Open Commerce Initiative (OCI)",
+        environment: config.googlePay?.environment || "PRODUCTION",
+      },
     };
   }
 
@@ -36,16 +45,16 @@ class MobilePaymentService {
    * @param {string} params.currency - Currency code
    * @returns {Promise<Object>} Session data
    */
-  async initializeApplePay({ walletId, amount, currency = 'USD' }) {
+  async initializeApplePay({ walletId, amount, currency = "USD" }) {
     try {
       // Validate wallet
       const wallet = await this.wallet.getWallet(walletId);
-      if (!wallet || wallet.status !== 'active') {
-        throw new Error('Invalid or inactive wallet');
+      if (!wallet || wallet.status !== "active") {
+        throw new Error("Invalid or inactive wallet");
       }
 
       // Generate session ID
-      const sessionId = this._generateSessionId('applepay');
+      const sessionId = this._generateSessionId("applepay");
 
       // Create payment request configuration
       const paymentRequest = {
@@ -55,12 +64,12 @@ class MobilePaymentService {
         countryCode: this.config.applePay.countryCode,
         currencyCode: currency,
         supportedNetworks: this.config.applePay.supportedNetworks,
-        merchantCapabilities: ['supports3DS'],
+        merchantCapabilities: ["supports3DS"],
         total: {
           label: `Add ${amount} ${currency} to wallet`,
           amount: amount.toFixed(2),
-          type: 'final'
-        }
+          type: "final",
+        },
       };
 
       // Store session temporarily (in production, use Redis or similar)
@@ -68,13 +77,13 @@ class MobilePaymentService {
         walletId,
         amount,
         currency,
-        type: 'applepay',
-        expiresAt: Date.now() + (15 * 60 * 1000) // 15 minutes
+        type: "applepay",
+        expiresAt: Date.now() + 15 * 60 * 1000, // 15 minutes
       });
 
       return paymentRequest;
     } catch (error) {
-      throw this._handleError('initializeApplePay', error);
+      throw this._handleError("initializeApplePay", error);
     }
   }
 
@@ -90,11 +99,11 @@ class MobilePaymentService {
       // Retrieve session
       const session = await this._getSession(sessionId);
       if (!session) {
-        throw new Error('Invalid or expired session');
+        throw new Error("Invalid or expired session");
       }
 
-      if (session.type !== 'applepay') {
-        throw new Error('Invalid session type');
+      if (session.type !== "applepay") {
+        throw new Error("Invalid session type");
       }
 
       // Validate payment data structure
@@ -105,7 +114,7 @@ class MobilePaymentService {
         wallet_id: session.walletId,
         session_id: sessionId,
         amount: session.amount,
-        currency: session.currency
+        currency: session.currency,
       });
 
       // Add funds to wallet
@@ -115,11 +124,11 @@ class MobilePaymentService {
         paymentToken: token.id,
         description: `Apple Pay funding - ${session.amount} ${session.currency}`,
         metadata: {
-          payment_method: 'apple_pay',
+          payment_method: "apple_pay",
           payment_network: token.payment_network,
           transaction_id: token.transaction_id,
-          session_id: sessionId
-        }
+          session_id: sessionId,
+        },
       });
 
       // Clean up session
@@ -134,11 +143,11 @@ class MobilePaymentService {
         token: {
           id: token.id,
           last4: this._extractLast4FromToken(token),
-          network: token.payment_network
-        }
+          network: token.payment_network,
+        },
       };
     } catch (error) {
-      throw this._handleError('processApplePay', error);
+      throw this._handleError("processApplePay", error);
     }
   }
 
@@ -150,16 +159,16 @@ class MobilePaymentService {
    * @param {string} params.currency - Currency code
    * @returns {Promise<Object>} Session data
    */
-  async initializeGooglePay({ walletId, amount, currency = 'USD' }) {
+  async initializeGooglePay({ walletId, amount, currency = "USD" }) {
     try {
       // Validate wallet
       const wallet = await this.wallet.getWallet(walletId);
-      if (!wallet || wallet.status !== 'active') {
-        throw new Error('Invalid or inactive wallet');
+      if (!wallet || wallet.status !== "active") {
+        throw new Error("Invalid or inactive wallet");
       }
 
       // Generate session ID
-      const sessionId = this._generateSessionId('googlepay');
+      const sessionId = this._generateSessionId("googlepay");
 
       // Create payment configuration
       const paymentConfig = {
@@ -167,28 +176,30 @@ class MobilePaymentService {
         environment: this.config.googlePay.environment,
         merchantInfo: {
           merchantId: this.config.googlePay.merchantId,
-          merchantName: this.config.googlePay.merchantName
+          merchantName: this.config.googlePay.merchantName,
         },
         transactionInfo: {
-          totalPriceStatus: 'FINAL',
+          totalPriceStatus: "FINAL",
           totalPrice: amount.toFixed(2),
           currencyCode: currency,
-          countryCode: this.config.applePay.countryCode
+          countryCode: this.config.applePay.countryCode,
         },
-        allowedPaymentMethods: [{
-          type: 'CARD',
-          parameters: {
-            allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
-            allowedCardNetworks: ['MASTERCARD', 'VISA', 'AMEX', 'DISCOVER']
-          },
-          tokenizationSpecification: {
-            type: 'PAYMENT_GATEWAY',
+        allowedPaymentMethods: [
+          {
+            type: "CARD",
             parameters: {
-              gateway: 'basistheory',
-              gatewayMerchantId: this.config.googlePay.merchantId
-            }
-          }
-        }]
+              allowedAuthMethods: ["PAN_ONLY", "CRYPTOGRAM_3DS"],
+              allowedCardNetworks: ["MASTERCARD", "VISA", "AMEX", "DISCOVER"],
+            },
+            tokenizationSpecification: {
+              type: "PAYMENT_GATEWAY",
+              parameters: {
+                gateway: "basistheory",
+                gatewayMerchantId: this.config.googlePay.merchantId,
+              },
+            },
+          },
+        ],
       };
 
       // Store session
@@ -196,13 +207,13 @@ class MobilePaymentService {
         walletId,
         amount,
         currency,
-        type: 'googlepay',
-        expiresAt: Date.now() + (15 * 60 * 1000)
+        type: "googlepay",
+        expiresAt: Date.now() + 15 * 60 * 1000,
       });
 
       return paymentConfig;
     } catch (error) {
-      throw this._handleError('initializeGooglePay', error);
+      throw this._handleError("initializeGooglePay", error);
     }
   }
 
@@ -218,11 +229,11 @@ class MobilePaymentService {
       // Retrieve session
       const session = await this._getSession(sessionId);
       if (!session) {
-        throw new Error('Invalid or expired session');
+        throw new Error("Invalid or expired session");
       }
 
-      if (session.type !== 'googlepay') {
-        throw new Error('Invalid session type');
+      if (session.type !== "googlepay") {
+        throw new Error("Invalid session type");
       }
 
       // Validate payment data structure
@@ -233,7 +244,7 @@ class MobilePaymentService {
         wallet_id: session.walletId,
         session_id: sessionId,
         amount: session.amount,
-        currency: session.currency
+        currency: session.currency,
       });
 
       // Add funds to wallet
@@ -243,10 +254,10 @@ class MobilePaymentService {
         paymentToken: token.id,
         description: `Google Pay funding - ${session.amount} ${session.currency}`,
         metadata: {
-          payment_method: 'google_pay',
+          payment_method: "google_pay",
           payment_network: token.payment_network,
-          session_id: sessionId
-        }
+          session_id: sessionId,
+        },
       });
 
       // Clean up session
@@ -260,11 +271,11 @@ class MobilePaymentService {
         newBalance: result.newBalance,
         token: {
           id: token.id,
-          network: token.payment_network
-        }
+          network: token.payment_network,
+        },
       };
     } catch (error) {
-      throw this._handleError('processGooglePay', error);
+      throw this._handleError("processGooglePay", error);
     }
   }
 
@@ -277,18 +288,18 @@ class MobilePaymentService {
     try {
       const session = await this._getSession(sessionId);
       if (!session) {
-        return { status: 'expired', sessionId };
+        return { status: "expired", sessionId };
       }
 
       const isExpired = Date.now() > session.expiresAt;
       return {
-        status: isExpired ? 'expired' : 'active',
+        status: isExpired ? "expired" : "active",
         sessionId,
         type: session.type,
-        expiresAt: new Date(session.expiresAt).toISOString()
+        expiresAt: new Date(session.expiresAt).toISOString(),
       };
     } catch (error) {
-      throw this._handleError('getSessionStatus', error);
+      throw this._handleError("getSessionStatus", error);
     }
   }
 
@@ -301,7 +312,7 @@ class MobilePaymentService {
     try {
       await this._deleteSession(sessionId);
     } catch (error) {
-      throw this._handleError('cancelSession', error);
+      throw this._handleError("cancelSession", error);
     }
   }
 
@@ -310,16 +321,16 @@ class MobilePaymentService {
    * @private
    */
   _validateApplePayData(paymentData) {
-    if (!paymentData || typeof paymentData !== 'object') {
-      throw new Error('Invalid Apple Pay payment data');
+    if (!paymentData || typeof paymentData !== "object") {
+      throw new Error("Invalid Apple Pay payment data");
     }
 
     if (!paymentData.data || !paymentData.signature || !paymentData.version) {
-      throw new Error('Missing required Apple Pay payment data fields');
+      throw new Error("Missing required Apple Pay payment data fields");
     }
 
     if (!paymentData.header || !paymentData.header.ephemeralPublicKey) {
-      throw new Error('Missing Apple Pay header information');
+      throw new Error("Missing Apple Pay header information");
     }
   }
 
@@ -328,16 +339,16 @@ class MobilePaymentService {
    * @private
    */
   _validateGooglePayData(paymentData) {
-    if (!paymentData || typeof paymentData !== 'object') {
-      throw new Error('Invalid Google Pay payment data');
+    if (!paymentData || typeof paymentData !== "object") {
+      throw new Error("Invalid Google Pay payment data");
     }
 
     if (!paymentData.paymentMethodData) {
-      throw new Error('Missing payment method data');
+      throw new Error("Missing payment method data");
     }
 
     if (!paymentData.paymentMethodData.tokenizationData) {
-      throw new Error('Missing tokenization data');
+      throw new Error("Missing tokenization data");
     }
   }
 
@@ -347,7 +358,7 @@ class MobilePaymentService {
    */
   _generateSessionId(type) {
     const timestamp = Date.now();
-    const random = crypto.randomBytes(16).toString('hex');
+    const random = crypto.randomBytes(16).toString("hex");
     return `${type}_session_${timestamp}_${random}`;
   }
 
@@ -396,7 +407,7 @@ class MobilePaymentService {
    */
   _extractLast4FromToken(token) {
     // This would depend on the token structure from your provider
-    return token.last4 || '****';
+    return token.last4 || "****";
   }
 
   /**

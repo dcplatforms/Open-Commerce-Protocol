@@ -4,10 +4,10 @@
  * Defines API endpoints for Universal Commerce Protocol (UCP) operations.
  */
 
-const express = require('express');
-const { authenticate } = require('../middleware/auth');
-const { validate } = require('../middleware/validation');
-const Joi = require('joi');
+const express = require("express");
+const { authenticate } = require("../middleware/auth");
+const { validate } = require("../middleware/validation");
+const Joi = require("joi");
 
 module.exports = (ucpService) => {
   const router = express.Router();
@@ -16,7 +16,8 @@ module.exports = (ucpService) => {
    * POST /api/v1/ucp/process
    * Process a UCP-compliant commerce intent
    */
-  router.post('/process',
+  router.post(
+    "/process",
     authenticate,
     validate({
       body: Joi.object({
@@ -24,18 +25,18 @@ module.exports = (ucpService) => {
         intent: Joi.string().required(),
         sender: Joi.object({
           agent_id: Joi.string().required(),
-          wallet_id: Joi.string()
+          wallet_id: Joi.string(),
         }).required(),
         recipient: Joi.object({
           agent_id: Joi.string().required(),
-          wallet_id: Joi.string()
+          wallet_id: Joi.string(),
         }),
         amount: Joi.object({
           value: Joi.number().required(),
-          currency: Joi.string()
+          currency: Joi.string(),
         }),
-        data: Joi.object()
-      })
+        data: Joi.object(),
+      }),
     }),
     async (req, res, next) => {
       try {
@@ -44,14 +45,14 @@ module.exports = (ucpService) => {
       } catch (error) {
         next(error);
       }
-    }
+    },
   );
 
   /**
    * GET /api/v1/ucp/schema
    * Get the JSON schema for UCP intents
    */
-  router.get('/schema', async (req, res, next) => {
+  router.get("/schema", async (req, res, next) => {
     try {
       const schema = ucpService.getUcpSchema();
       res.json(schema);

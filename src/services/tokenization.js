@@ -5,31 +5,36 @@
  * Supports PCI DSS compliant token creation, retrieval, and management.
  */
 
-const axios = require('axios');
-const crypto = require('crypto');
-const MandateService = require('./mandate');
-const logger = require('../utils/logger');
+const axios = require("axios");
+const crypto = require("crypto");
+const MandateService = require("./mandate");
+const logger = require("../utils/logger");
 
 class TokenizationService {
   constructor(config = {}) {
     this.apiKey = config.apiKey || process.env.TOKENIZATION_API_KEY;
-    this.baseURL = config.baseURL || process.env.TOKENIZATION_BASE_URL || 'https://api.basistheory.com';
+    this.baseURL =
+      config.baseURL ||
+      process.env.TOKENIZATION_BASE_URL ||
+      "https://api.basistheory.com";
     this.tenantId = config.tenantId || process.env.TOKENIZATION_TENANT_ID;
     this.timeout = config.timeout || 30000;
-    this.strictMandateMode = config.strictMandateMode !== undefined ?
-      config.strictMandateMode : (process.env.STRICT_MANDATE_MODE === 'true');
+    this.strictMandateMode =
+      config.strictMandateMode !== undefined
+        ? config.strictMandateMode
+        : process.env.STRICT_MANDATE_MODE === "true";
 
     if (!this.apiKey) {
-      throw new Error('Tokenization API key is required');
+      throw new Error("Tokenization API key is required");
     }
 
     this.client = axios.create({
       baseURL: this.baseURL,
       timeout: this.timeout,
       headers: {
-        'BT-API-KEY': this.apiKey,
-        'Content-Type': 'application/json'
-      }
+        "BT-API-KEY": this.apiKey,
+        "Content-Type": "application/json",
+      },
     });
 
     this.mandateService = new MandateService(config.mandateConfig);
@@ -47,20 +52,20 @@ class TokenizationService {
    */
   async createCardToken(cardData, metadata = {}) {
     try {
-      const response = await this.client.post('/tokens', {
-        type: 'card',
+      const response = await this.client.post("/tokens", {
+        type: "card",
         data: {
           number: cardData.number,
           expiration_month: cardData.exp_month,
           expiration_year: cardData.exp_year,
-          cvc: cardData.cvc
+          cvc: cardData.cvc,
         },
         metadata: {
           ...metadata,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         },
-        search_indexes: ['{{data.number | last4}}'],
-        fingerprint_expression: '{{data.number}}'
+        search_indexes: ["{{data.number | last4}}"],
+        fingerprint_expression: "{{data.number}}",
       });
 
       return {
@@ -71,10 +76,10 @@ class TokenizationService {
         exp_month: cardData.exp_month,
         exp_year: cardData.exp_year,
         fingerprint: response.data.fingerprint,
-        created_at: response.data.created_at
+        created_at: response.data.created_at,
       };
     } catch (error) {
-      throw this._handleError(error);
+      throw this._handleError("createCardToken", error);
     }
   }
 
@@ -86,25 +91,25 @@ class TokenizationService {
    */
   async createApplePayToken(paymentData, metadata = {}) {
     try {
-      const response = await this.client.post('/tokens', {
-        type: 'applepay',
+      const response = await this.client.post("/tokens", {
+        type: "applepay",
         data: paymentData,
         metadata: {
           ...metadata,
-          payment_method: 'apple_pay',
-          created_at: new Date().toISOString()
-        }
+          payment_method: "apple_pay",
+          created_at: new Date().toISOString(),
+        },
       });
 
       return {
         id: response.data.id,
-        type: 'applepay',
+        type: "applepay",
         payment_network: paymentData.header?.network,
         transaction_id: paymentData.header?.transactionId,
-        created_at: response.data.created_at
+        created_at: response.data.created_at,
       };
     } catch (error) {
-      throw this._handleError(error);
+      throw this._handleError("createApplePayToken", error);
     }
   }
 
@@ -116,24 +121,24 @@ class TokenizationService {
    */
   async createGooglePayToken(paymentData, metadata = {}) {
     try {
-      const response = await this.client.post('/tokens', {
-        type: 'googlepay',
+      const response = await this.client.post("/tokens", {
+        type: "googlepay",
         data: paymentData,
         metadata: {
           ...metadata,
-          payment_method: 'google_pay',
-          created_at: new Date().toISOString()
-        }
+          payment_method: "google_pay",
+          created_at: new Date().toISOString(),
+        },
       });
 
       return {
         id: response.data.id,
-        type: 'googlepay',
+        type: "googlepay",
         payment_network: paymentData.paymentMethodData?.info?.cardNetwork,
-        created_at: response.data.created_at
+        created_at: response.data.created_at,
       };
     } catch (error) {
-      throw this._handleError(error);
+      throw this._handleError("createGooglePayToken", error);
     }
   }
 
@@ -147,7 +152,7 @@ class TokenizationService {
       const response = await this.client.get(`/tokens/${tokenId}`);
       return response.data;
     } catch (error) {
-      throw this._handleError(error);
+      throw this._handleError("getToken", error);
     }
   }
 
@@ -160,7 +165,7 @@ class TokenizationService {
     try {
       await this.client.delete(`/tokens/${tokenId}`);
     } catch (error) {
-      throw this._handleError(error);
+      throw this._handleError("deleteToken", error);
     }
   }
 
@@ -172,18 +177,18 @@ class TokenizationService {
    * @param {Object} metadata - Optional metadata
    * @returns {Promise<Object>} Payment result
    */
-  async processPayment(tokenId, amount, currency = 'USD', metadata = {}) {
+  async processPayment(tokenId, amount, currency = "USD", metadata = {}) {
     try {
       // This would integrate with your payment processor
       // Example implementation with a generic payment API
-      const response = await this.client.post('/payments', {
+      const response = await this.client.post("/payments", {
         token: tokenId,
         amount,
         currency,
         metadata: {
           ...metadata,
-          processed_at: new Date().toISOString()
-        }
+          processed_at: new Date().toISOString(),
+        },
       });
 
       return {
@@ -192,10 +197,10 @@ class TokenizationService {
         amount,
         currency,
         token_id: tokenId,
-        created_at: response.data.created_at
+        created_at: response.data.created_at,
       };
     } catch (error) {
-      throw this._handleError(error);
+      throw this._handleError("processPayment", error);
     }
   }
 
@@ -206,15 +211,18 @@ class TokenizationService {
    * @param {string} reason - Refund reason
    * @returns {Promise<Object>} Refund result
    */
-  async createRefund(paymentId, amount, reason = 'requested_by_customer') {
+  async createRefund(paymentId, amount, reason = "requested_by_customer") {
     try {
-      const response = await this.client.post(`/payments/${paymentId}/refunds`, {
-        amount,
-        reason,
-        metadata: {
-          refunded_at: new Date().toISOString()
-        }
-      });
+      const response = await this.client.post(
+        `/payments/${paymentId}/refunds`,
+        {
+          amount,
+          reason,
+          metadata: {
+            refunded_at: new Date().toISOString(),
+          },
+        },
+      );
 
       return {
         id: response.data.id,
@@ -222,10 +230,10 @@ class TokenizationService {
         amount,
         reason,
         status: response.data.status,
-        created_at: response.data.created_at
+        created_at: response.data.created_at,
       };
     } catch (error) {
-      throw this._handleError(error);
+      throw this._handleError("createRefund", error);
     }
   }
 
@@ -236,10 +244,10 @@ class TokenizationService {
    */
   async searchTokens(criteria) {
     try {
-      const response = await this.client.post('/tokens/search', criteria);
+      const response = await this.client.post("/tokens/search", criteria);
       return response.data.data || [];
     } catch (error) {
-      throw this._handleError(error);
+      throw this._handleError("searchTokens", error);
     }
   }
 
@@ -262,15 +270,15 @@ class TokenizationService {
    * @private
    */
   _detectCardBrand(cardNumber) {
-    const number = cardNumber.replace(/\s/g, '');
+    const number = cardNumber.replace(/\s/g, "");
 
-    if (/^4/.test(number)) return 'visa';
-    if (/^5[1-5]/.test(number)) return 'mastercard';
-    if (/^3[47]/.test(number)) return 'amex';
-    if (/^6(?:011|5)/.test(number)) return 'discover';
-    if (/^(?:2131|1800|35)/.test(number)) return 'jcb';
+    if (/^4/.test(number)) return "visa";
+    if (/^5[1-5]/.test(number)) return "mastercard";
+    if (/^3[47]/.test(number)) return "amex";
+    if (/^6(?:011|5)/.test(number)) return "discover";
+    if (/^(?:2131|1800|35)/.test(number)) return "jcb";
 
-    return 'unknown';
+    return "unknown";
   }
 
   /**
@@ -281,34 +289,34 @@ class TokenizationService {
    */
   async createSecretToken(secret, metadata = {}) {
     // Mock for testing/simulation
-    if (this.apiKey === 'test-key' || process.env.NODE_ENV === 'test') {
+    if (this.apiKey === "test-key" || process.env.NODE_ENV === "test") {
       return {
-        id: `token_${crypto.randomBytes(8).toString('hex')}`,
-        type: 'secret',
+        id: `token_${crypto.randomBytes(8).toString("hex")}`,
+        type: "secret",
         created_at: new Date().toISOString(),
-        metadata: { ...metadata, type: 'secret_key' }
+        metadata: { ...metadata, type: "secret_key" },
       };
     }
 
     try {
-      const response = await this.client.post('/tokens', {
-        type: 'token',
+      const response = await this.client.post("/tokens", {
+        type: "token",
         data: secret,
         metadata: {
           ...metadata,
-          type: 'secret_key',
-          created_at: new Date().toISOString()
-        }
+          type: "secret_key",
+          created_at: new Date().toISOString(),
+        },
       });
 
       return {
         id: response.data.id,
-        type: 'secret',
+        type: "secret",
         created_at: response.data.created_at,
-        metadata: response.data.metadata
+        metadata: response.data.metadata,
       };
     } catch (error) {
-      throw this._handleError(error);
+      throw this._handleError("createSecretToken", error);
     }
   }
 
@@ -327,8 +335,8 @@ class TokenizationService {
       try {
         decodedMandate = await this.mandateService.verifyMandate(mandate);
       } catch (error) {
-        if (error.message.includes('jwt expired')) {
-          throw new Error('Zero Trust Validation Failed: Mandate has expired');
+        if (error.message.includes("jwt expired")) {
+          throw new Error("Zero Trust Validation Failed: Mandate has expired");
         }
         throw new Error(`Zero Trust Validation Failed: ${error.message}`);
       }
@@ -336,50 +344,64 @@ class TokenizationService {
       // Validate budget if context amount is provided
       if (context.amount) {
         // Check Intent Mandate budget
-        if (decodedMandate.max_budget && context.amount > decodedMandate.max_budget.value) {
-          throw new Error(`Zero Trust Validation Failed: Amount ${context.amount} exceeds mandate budget of ${decodedMandate.max_budget.value}`);
+        if (
+          decodedMandate.max_budget &&
+          context.amount > decodedMandate.max_budget.value
+        ) {
+          throw new Error(
+            `Zero Trust Validation Failed: Amount ${context.amount} exceeds mandate budget of ${decodedMandate.max_budget.value}`,
+          );
         }
         // Check Cart Mandate total price
-        if (decodedMandate.total_price && context.amount !== decodedMandate.total_price) {
-          throw new Error(`Zero Trust Validation Failed: Amount ${context.amount} does not match cart mandate total of ${decodedMandate.total_price}`);
+        if (
+          decodedMandate.total_price &&
+          context.amount !== decodedMandate.total_price
+        ) {
+          throw new Error(
+            `Zero Trust Validation Failed: Amount ${context.amount} does not match cart mandate total of ${decodedMandate.total_price}`,
+          );
         }
       }
 
       // Validate merchant if context merchant is provided
       if (context.merchant && decodedMandate.allowed_merchants?.length > 0) {
         if (!decodedMandate.allowed_merchants.includes(context.merchant)) {
-          throw new Error(`Zero Trust Validation Failed: Merchant ${context.merchant} not authorized by mandate`);
+          throw new Error(
+            `Zero Trust Validation Failed: Merchant ${context.merchant} not authorized by mandate`,
+          );
         }
       }
 
       // Validate expiration
       if (decodedMandate.exp < Math.floor(Date.now() / 1000)) {
-        throw new Error('Zero Trust Validation Failed: Mandate has expired');
+        throw new Error("Zero Trust Validation Failed: Mandate has expired");
       }
     } else if (this.strictMandateMode) {
-      throw new Error('Zero Trust Validation Failed: Mandate required for signing in strict mode');
+      throw new Error(
+        "Zero Trust Validation Failed: Mandate required for signing in strict mode",
+      );
     }
 
     try {
       // In a real implementation, this would call a Basis Theory Reactor
       // providing the tokenId. The Reactor would securely retrieve the
       // secret and sign the data without exposing the key.
-      const response = await this.client.post('/reactors/sign', {
+      const response = await this.client.post("/reactors/sign", {
         args: {
           tokenId,
           data: dataToSign,
-          mandate // Pass mandate to reactor for server-side validation
-        }
+          mandate, // Pass mandate to reactor for server-side validation
+        },
       });
 
       return response.data.signature;
     } catch (error) {
       // Fallback for simulation/testing if reactor endpoint doesn't exist
       // We assume for simulation that we can just "mock" a signature
-      if (process.env.NODE_ENV !== 'production' || this.apiKey === 'test-key') {
-        return `0x_mock_signature_of_${dataToSign}_with_${tokenId}${mandate ? '_validated_by_mandate' : ''}`;
+      if (process.env.NODE_ENV !== "production" || this.apiKey === "test-key") {
+        return `0x_mock_signature_of_${dataToSign}_with_${tokenId}${mandate ? "_validated_by_mandate" : ""}`;
       }
-      throw this._handleError(error);
+      throw this._handleError("signWithToken", error);
     }
   }
 
@@ -387,18 +409,18 @@ class TokenizationService {
    * Handle and format errors
    * @private
    */
-  _handleError(error) {
-    logger.error('TokenizationService error:', error);
+  _handleError(method, error) {
+    logger.error(`TokenizationService.${method} error:`, error);
 
     if (error.response) {
       const { status, data } = error.response;
       return new Error(
-        `Tokenization error (${status}): ${data.message || data.error || 'Unknown error'}`
+        `Tokenization error (${status}): ${data.message || data.error || "Unknown error"}`,
       );
     }
 
     if (error.request) {
-      return new Error('Tokenization service unavailable');
+      return new Error("Tokenization service unavailable");
     }
 
     return error;

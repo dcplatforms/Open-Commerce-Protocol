@@ -4,45 +4,45 @@
  * Validates JWT tokens and protects routes.
  */
 
-const jwt = require('jsonwebtoken');
-const config = require('../config');
-const logger = require('../utils/logger');
+const jwt = require("jsonwebtoken");
+const config = require("../config");
+const logger = require("../utils/logger");
 
 const authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({
       success: false,
-      error: 'Authentication required'
+      error: "Authentication required",
     });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
 
   try {
     const decoded = jwt.verify(token, config.security.jwtSecret);
     req.user = decoded;
     next();
   } catch (error) {
-    logger.warn('Invalid token attempt:', error.message);
+    logger.warn("Invalid token attempt:", error.message);
     return res.status(401).json({
       success: false,
-      error: 'Invalid or expired token'
+      error: "Invalid or expired token",
     });
   }
 };
 
 const authorize = (roles = []) => {
-  if (typeof roles === 'string') {
+  if (typeof roles === "string") {
     roles = [roles];
   }
 
   return (req, res, next) => {
-    if (roles.length && !roles.some(role => req.user.roles.includes(role))) {
+    if (roles.length && !roles.some((role) => req.user.roles.includes(role))) {
       return res.status(403).json({
         success: false,
-        error: 'Forbidden'
+        error: "Forbidden",
       });
     }
     next();
