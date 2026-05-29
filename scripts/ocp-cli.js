@@ -11,6 +11,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const MandateService = require('../src/services/mandate');
+const TokenizationService = require('../src/services/tokenization');
+const Web3Service = require('../src/services/web3');
 
 const program = new Command();
 
@@ -151,45 +153,40 @@ program.command('x402:settle')
         console.error(`Error: Mandate file not found at ${options.mandate}. In STRICT_MANDATE_MODE, a valid mandate is required for signing.`);
         return;
       }
-    } else {
+    } else if (process.env.STRICT_MANDATE_MODE === 'true') {
       console.error(`Error: Mandate required for x402 settlement in STRICT_MANDATE_MODE.`);
       return;
     }
 
-    // Simulation of x402 settlement with fiduciary validation
-    const signingKey = process.env.MANDATE_SIGNING_KEY || 'default-secret-key';
-    const mandateService = new MandateService({ signingKey });
+    // Initialize Services for real settlement rails logic
+    const tokenizationService = new TokenizationService({
+      apiKey: process.env.TOKENIZATION_API_KEY || 'test-key',
+      mandateConfig: {
+        signingKey: process.env.MANDATE_SIGNING_KEY || 'default-secret-key'
+      }
+    });
+    const web3Service = new Web3Service(tokenizationService);
 
     try {
-      const decodedMandate = await mandateService.verifyMandate(mandateToken);
       const amountNum = parseFloat(amount);
+      const result = await web3Service.executeX402Settlement({
+        keyTokenId: 'cli-default-key', // Use default CLI key
+        to: options.to,
+        amount: amountNum,
+        stablecoin: options.token,
+        mandate: mandateToken
+      });
 
-      // Validate budget
-      if (decodedMandate.max_budget && amountNum > decodedMandate.max_budget.value) {
-        console.error(`Zero Trust Validation Failed: Amount ${amountNum} exceeds mandate budget of ${decodedMandate.max_budget.value} ${decodedMandate.max_budget.currency}`);
-        return;
-      }
-
-      // Validate expiration
-      if (decodedMandate.exp < Math.floor(Date.now() / 1000)) {
-        console.error('Zero Trust Validation Failed: Mandate has expired');
-        return;
-      }
+      console.log(`Settlement Successful!`);
+      console.log(`ID: ${result.settlement_id}`);
+      console.log(`Token: ${result.stablecoin}`);
+      console.log(`Amount: ${result.amount}`);
+      console.log(`Recipient: ${result.recipient}`);
+      console.log(`Transaction Hash: ${result.tx_hash}`);
+      console.log(`Status: Finalized (24/7 Low-Latency Rails)`);
     } catch (error) {
-      console.error(`Zero Trust Validation Failed: ${error.message}`);
-      return;
+      console.error(error.message);
     }
-
-    const settlementId = `x402_${crypto.randomBytes(8).toString('hex')}`;
-    const txHash = `0x${crypto.randomBytes(32).toString('hex')}`;
-
-    console.log(`Settlement Successful!`);
-    console.log(`ID: ${settlementId}`);
-    console.log(`Token: ${options.token}`);
-    console.log(`Amount: ${amount}`);
-    console.log(`Recipient: ${options.to}`);
-    console.log(`Transaction Hash: ${txHash}`);
-    console.log(`Status: Finalized (24/7 Low-Latency Rails)`);
   });
 
 program.parse();

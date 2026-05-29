@@ -335,10 +335,13 @@ class TokenizationService {
       try {
         decodedMandate = await this.mandateService.verifyMandate(mandate);
       } catch (error) {
-        if (error.message.includes("jwt expired")) {
+        if (error.message?.includes("jwt expired")) {
           throw new Error("Zero Trust Validation Failed: Mandate has expired");
         }
-        throw new Error(`Zero Trust Validation Failed: ${error.message}`);
+        if (error.message?.includes("Zero Trust Validation Failed:")) {
+          throw error;
+        }
+        throw new Error(`Zero Trust Validation Failed: ${error.message || error}`);
       }
 
       // Validate budget if context amount is provided

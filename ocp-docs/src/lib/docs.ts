@@ -14,8 +14,23 @@ export async function getDocBySlug(slug: string) {
 
 export async function getAllDocSlugs() {
   if (!fs.existsSync(CONTENT_PATH)) return [];
-  const files = fs.readdirSync(CONTENT_PATH);
-  return files
-    .filter((file) => file.endsWith('.md'))
-    .map((file) => file.replace(/\.md$/, ''));
+
+  const getFiles = (dir: string): string[] => {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const files = entries
+      .filter(e => !e.isDirectory() && e.name.endsWith('.md'))
+      .map(e => path.join(dir, e.name));
+
+    const folders = entries.filter(e => e.isDirectory());
+    for (const folder of folders) {
+      files.push(...getFiles(path.join(dir, folder.name)));
+    }
+    return files;
+  };
+
+  const allFiles = getFiles(CONTENT_PATH);
+  return allFiles.map(file => {
+    const relativePath = path.relative(CONTENT_PATH, file);
+    return relativePath.replace(/\\/g, '/').replace(/\.md$/, '');
+  });
 }

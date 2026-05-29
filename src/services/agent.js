@@ -182,7 +182,7 @@ class AgentService {
     // Basic policy checks (more complex logic would be here)
     if (amount > fromAgent.policy.spendingLimit) {
       throw new Error(
-        `Transfer amount exceeds spending limit for agent ${fromAgentId}`,
+        `Zero Trust Validation Failed: Transfer amount exceeds spending limit for agent ${fromAgentId}`,
       );
     }
     if (
@@ -190,7 +190,7 @@ class AgentService {
       fromAgent.policy.authorizedCounterparties.length > 0
     ) {
       throw new Error(
-        `Agent ${toAgentId} is not an authorized counterparty for ${fromAgentId}`,
+        `Zero Trust Validation Failed: Agent ${toAgentId} is not an authorized counterparty for ${fromAgentId}`,
       );
     }
 
