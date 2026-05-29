@@ -42,27 +42,26 @@ class UCPService {
   /**
    * Process a UCP Payload
    * @param {Object} payload - The raw UCP JSON payload
+   * @param {string} mandate - Optional signed Mandate (AP2) for Zero Trust validation
    */
-  async processPayload(payload) {
+  async processPayload(payload, mandate) {
     try {
       // 1. Validate the UCP intent against schema
       const { error, value } = this.ucpIntentSchema.validate(payload, {
         stripUnknown: true,
       });
       if (error) {
-        throw new Error(
-          `Zero Trust Validation Failed: UCP Intent validation failed: ${error.details.map((x) => x.message).join(", ")}`,
-        );
+        throw new Error(`Zero Trust Validation Failed: UCP Intent validation failed: ${error.details.map(x => x.message).join(', ')}`);
       }
 
       const validatedPayload = value;
       const { intent } = validatedPayload;
 
       switch (intent) {
-        case "transfer":
-        case "payment":
-          return this._handleTransfer(validatedPayload);
-        case "purchase":
+        case 'transfer':
+        case 'payment':
+          return this._handleTransfer(validatedPayload, mandate);
+        case 'purchase':
           // Future implementation: integration with Inventory/Order services
           return {
             status: "success",
@@ -85,21 +84,22 @@ class UCPService {
    * Handle transfer/payment intents via A2AService
    * @private
    */
-  async _handleTransfer(payload) {
+  async _handleTransfer(payload, mandate) {
     const { sender, recipient, amount } = payload;
 
     if (!recipient?.agent_id) {
-      throw new Error("Missing recipient agent_id for transfer");
+      throw new Error('Zero Trust Validation Failed: Missing recipient agent_id for transfer');
     }
     if (!amount?.value) {
-      throw new Error("Missing amount value");
+      throw new Error('Zero Trust Validation Failed: Missing amount value');
     }
 
     return this.a2aService.executeTransfer({
       fromAgentId: sender.agent_id,
       toAgentId: recipient.agent_id,
       amount: amount.value,
-      ucpPayload: payload,
+      mandate,
+      ucpPayload: payload
     });
   }
 
