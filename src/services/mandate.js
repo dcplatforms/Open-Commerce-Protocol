@@ -67,27 +67,18 @@ class MandateService {
   }) {
     const decodedIntent = await this.verifyMandate(intentMandate);
 
-    if (decodedIntent.type !== "intent_mandate") {
-      throw new Error(
-        "Zero Trust Validation Failed: Invalid intent mandate type",
-      );
+    if (decodedIntent.type !== 'intent_mandate') {
+      throw new Error('Zero Trust Validation Failed: Invalid intent mandate type');
     }
 
     // Verify budget
     if (totalPrice > decodedIntent.max_budget.value) {
-      throw new Error(
-        "Zero Trust Validation Failed: Cart total exceeds intent mandate budget",
-      );
+      throw new Error('Zero Trust Validation Failed: Cart total exceeds intent mandate budget');
     }
 
     // Verify merchant if whitelist exists
-    if (
-      decodedIntent.allowed_merchants.length > 0 &&
-      !decodedIntent.allowed_merchants.includes(merchantDid)
-    ) {
-      throw new Error(
-        `Zero Trust Validation Failed: Merchant ${merchantDid} is not authorized by this mandate`,
-      );
+    if (decodedIntent.allowed_merchants.length > 0 && !decodedIntent.allowed_merchants.includes(merchantDid)) {
+      throw new Error(`Zero Trust Validation Failed: Merchant ${merchantDid} is not authorized by this mandate`);
     }
 
     // Create cryptographic hash of cart
@@ -120,9 +111,7 @@ class MandateService {
     try {
       return jwt.verify(token, this.signingKey, { algorithms: ["HS256"] });
     } catch (error) {
-      throw new Error(
-        `Zero Trust Validation Failed: Mandate verification failed: ${error.message}`,
-      );
+      throw new Error(`Zero Trust Validation Failed: Mandate verification failed: ${error.message}`);
     }
   }
 
