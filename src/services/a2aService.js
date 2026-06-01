@@ -84,7 +84,7 @@ class A2AService {
       amount > config.limits.perTransaction
     ) {
       throw new Error(
-        `Amount ${amount} exceeds agent per-transaction limit of ${config.limits.perTransaction}`,
+        `Zero Trust Validation Failed: Amount ${amount} exceeds agent per-transaction limit of ${config.limits.perTransaction}`,
       );
     }
 
@@ -95,7 +95,7 @@ class A2AService {
     ) {
       if (!config.authorizedCounterparties.includes(counterpartyId)) {
         throw new Error(
-          `Agent ${agent.id} is not authorized to trade with ${counterpartyId}`,
+          `Zero Trust Validation Failed: Agent ${agent.id} is not authorized to trade with ${counterpartyId}`,
         );
       }
     }

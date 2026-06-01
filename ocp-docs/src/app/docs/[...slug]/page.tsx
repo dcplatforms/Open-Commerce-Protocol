@@ -6,12 +6,13 @@ import GlassPanel from "@/components/GlassPanel";
 export async function generateStaticParams() {
   const slugs = await getAllDocSlugs();
   return slugs.map((slug) => ({
-    slug: slug,
+    slug: slug.replace(/\\/g, '/').split('/'),
   }));
 }
 
-export default async function DocPage({ params }: { params: { slug: string } }) {
-  const source = await getDocBySlug(params.slug);
+export default async function DocPage({ params }: { params: { slug: string | string[] } }) {
+  const slug = Array.isArray(params.slug) ? params.slug.join('/') : params.slug;
+  const source = await getDocBySlug(slug);
 
   if (!source) {
     notFound();
@@ -52,6 +53,24 @@ export default async function DocPage({ params }: { params: { slug: string } }) 
                <h4 className="font-montserrat font-bold text-xs uppercase tracking-widest text-white/40 mb-4">Settlement Rails</h4>
                <ul className="space-y-3 text-sm">
                   <li><a href="/docs/x402" className="text-white/60 hover:text-white transition-colors">x402 Extension</a></li>
+               </ul>
+             </div>
+
+             <div>
+               <h4 className="font-montserrat font-bold text-xs uppercase tracking-widest text-white/40 mb-4">API Reference</h4>
+               <ul className="space-y-3 text-sm">
+                  <li><a href="/docs/api/wallet" className="text-white/60 hover:text-white transition-colors">Wallet API</a></li>
+                  <li><a href="/docs/api/agent" className="text-white/60 hover:text-white transition-colors">Agent API</a></li>
+                  <li><a href="/docs/api/vault" className="text-white/60 hover:text-white transition-colors">Vault API</a></li>
+                  <li><a href="/docs/api/ucp" className="text-white/60 hover:text-white transition-colors">UCP API</a></li>
+               </ul>
+             </div>
+
+             <div>
+               <h4 className="font-montserrat font-bold text-xs uppercase tracking-widest text-white/40 mb-4">Integrations</h4>
+               <ul className="space-y-3 text-sm">
+                  <li><a href="/docs/integration/integrating-agents" className="text-white/60 hover:text-white transition-colors">Integrating Agents</a></li>
+                  <li><a href="/docs/integration/embedding-wallets" className="text-white/60 hover:text-white transition-colors">Embedding Wallets</a></li>
                </ul>
              </div>
           </div>
