@@ -5,13 +5,18 @@
  * policy compliance, limit checks, and authorized counterparty validation.
  */
 
-const { Agent } = require("../models/agent");
+const MandateService = require("./mandate");
 const logger = require("../utils/logger");
 
 class A2AService {
-  constructor(walletService, db) {
+  constructor(walletService, db, config = {}) {
     this.walletService = walletService;
     this.db = db;
+    this.mandateService = config.mandateService || new MandateService(config.mandateConfig);
+    this.strictMandateMode =
+      config.strictMandateMode !== undefined
+        ? config.strictMandateMode
+        : process.env.STRICT_MANDATE_MODE === "true";
   }
 
   /**
@@ -20,19 +25,45 @@ class A2AService {
    * @param {string} params.fromAgentId - Sender Agent ID
    * @param {string} params.toAgentId - Recipient Agent ID
    * @param {number} params.amount - Amount to transfer
+   * @param {string} params.mandate - Optional signed Mandate (AP2) for Zero Trust validation
    * @param {Object} params.ucpPayload - The original UCP intent/payload
    */
-  async executeTransfer({ fromAgentId, toAgentId, amount, ucpPayload = {} }) {
+  async executeTransfer({
+    fromAgentId,
+    toAgentId,
+    amount,
+    mandate,
+    ucpPayload = {},
+  }) {
     try {
-      // 1. Validate Agents
-      const fromAgent = await Agent.findById(fromAgentId);
-      if (!fromAgent || fromAgent.status !== "active") {
-        throw new Error(`Sender agent ${fromAgentId} not found or inactive`);
+      // 0. Zero Trust Mandate Validation
+      if (mandate) {
+        try {
+          await this.mandateService.verifyMandate(mandate);
+        } catch (error) {
+          throw new Error(
+            `Zero Trust Validation Failed: Mandate verification failed: ${error.message}`,
+          );
+        }
+      } else if (this.strictMandateMode) {
+        throw new Error(
+          "Zero Trust Validation Failed: Mandate required for A2A transfer in strict mode",
+        );
       }
 
-      const toAgent = await Agent.findById(toAgentId);
+      // 1. Validate Agents using Repository Pattern
+      const fromAgent = await this.db.findAgentById(fromAgentId);
+      if (!fromAgent || fromAgent.status !== "active") {
+        throw new Error(
+          `Zero Trust Validation Failed: Sender agent ${fromAgentId} not found or inactive`,
+        );
+      }
+
+      const toAgent = await this.db.findAgentById(toAgentId);
       if (!toAgent || toAgent.status !== "active") {
-        throw new Error(`Recipient agent ${toAgentId} not found or inactive`);
+        throw new Error(
+          `Zero Trust Validation Failed: Recipient agent ${toAgentId} not found or inactive`,
+        );
       }
 
       // 2. Policy Checks (Sender)
@@ -50,12 +81,9 @@ class A2AService {
           counterpartyAgentId: toAgentId,
           ucpPayload,
           type: "a2a_transfer",
+          mandate,
         },
       });
-
-      // 4. Update Agent Usage (if we were tracking daily usage in db, we'd do it here)
-      // For now, limits are stateless checks against config.
-      // In a real implementation, we would query daily volume or update a usage record.
 
       return {
         success: true,

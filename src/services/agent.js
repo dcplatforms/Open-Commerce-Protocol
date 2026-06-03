@@ -72,7 +72,7 @@ class AgentService {
     try {
       const agent = await this.db.findAgentById(agentId);
       if (!agent) {
-        throw new Error("Agent not found");
+        throw new Error("Zero Trust Validation Failed: Agent not found");
       }
       return agent;
     } catch (error) {

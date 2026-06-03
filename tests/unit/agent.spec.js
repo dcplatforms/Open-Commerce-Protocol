@@ -35,7 +35,7 @@ describe('AgentService', () => {
   describe('getAgent', () => {
     it('should throw if agent not found', async () => {
       mockDb.findAgentById.mockResolvedValue(null);
-      await expect(agentService.getAgent('nonexistent')).rejects.toThrow('Agent not found');
+      await expect(agentService.getAgent('nonexistent')).rejects.toThrow('Zero Trust Validation Failed: Agent not found');
     });
   });
 });
