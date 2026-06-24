@@ -5,13 +5,19 @@
  * policy compliance, limit checks, and authorized counterparty validation.
  */
 
-const { Agent } = require("../models/agent");
+const MandateService = require("./mandate");
 const logger = require("../utils/logger");
 
 class A2AService {
-  constructor(walletService, db) {
+  constructor(walletService, db, config = {}) {
     this.walletService = walletService;
     this.db = db;
+    this.config = config;
+    this.mandateService = new MandateService(config.mandateConfig);
+    this.strictMandateMode =
+      config.strictMandateMode !== undefined
+        ? config.strictMandateMode
+        : process.env.STRICT_MANDATE_MODE === "true";
   }
 
   /**
@@ -21,18 +27,50 @@ class A2AService {
    * @param {string} params.toAgentId - Recipient Agent ID
    * @param {number} params.amount - Amount to transfer
    * @param {Object} params.ucpPayload - The original UCP intent/payload
+   * @param {string} params.mandate - Optional signed Mandate (AP2) for Zero Trust validation
    */
-  async executeTransfer({ fromAgentId, toAgentId, amount, ucpPayload = {} }) {
+  async executeTransfer({
+    fromAgentId,
+    toAgentId,
+    amount,
+    ucpPayload = {},
+    mandate,
+  }) {
     try {
-      // 1. Validate Agents
-      const fromAgent = await Agent.findById(fromAgentId);
-      if (!fromAgent || fromAgent.status !== "active") {
-        throw new Error(`Sender agent ${fromAgentId} not found or inactive`);
+      // Zero Trust Validation: Verify mandate if provided or required
+      if (mandate) {
+        try {
+          await this.mandateService.verifyMandate(mandate, {
+            amount,
+            recipient: toAgentId,
+          });
+        } catch (error) {
+          if (error.message?.includes("Zero Trust Validation Failed:")) {
+            throw error;
+          }
+          throw new Error(
+            `Zero Trust Validation Failed: ${error.message || error}`,
+          );
+        }
+      } else if (this.strictMandateMode) {
+        throw new Error(
+          "Zero Trust Validation Failed: Mandate required for A2A transfer in strict mode",
+        );
       }
 
-      const toAgent = await Agent.findById(toAgentId);
+      // 1. Validate Agents
+      const fromAgent = await this.db.findAgentById(fromAgentId);
+      if (!fromAgent || fromAgent.status !== "active") {
+        throw new Error(
+          `Zero Trust Validation Failed: Sender agent ${fromAgentId} not found or inactive`,
+        );
+      }
+
+      const toAgent = await this.db.findAgentById(toAgentId);
       if (!toAgent || toAgent.status !== "active") {
-        throw new Error(`Recipient agent ${toAgentId} not found or inactive`);
+        throw new Error(
+          `Zero Trust Validation Failed: Recipient agent ${toAgentId} not found or inactive`,
+        );
       }
 
       // 2. Policy Checks (Sender)

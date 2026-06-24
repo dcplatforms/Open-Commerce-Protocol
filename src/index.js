@@ -34,7 +34,7 @@ const mobilePaymentService = new MobilePaymentService(
   walletService,
 );
 const agentService = new AgentService(db);
-const a2aService = new A2AService(walletService, db);
+const a2aService = new A2AService(walletService, db, config);
 const ucpService = new UCPService(a2aService);
 
 // Initialize Express app
