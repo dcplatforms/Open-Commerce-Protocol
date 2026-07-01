@@ -5,13 +5,18 @@
  * policy compliance, limit checks, and authorized counterparty validation.
  */
 
-const { Agent } = require("../models/agent");
+const MandateService = require("./mandate");
 const logger = require("../utils/logger");
 
 class A2AService {
-  constructor(walletService, db) {
+  constructor(walletService, db, config = {}) {
     this.walletService = walletService;
     this.db = db;
+    this.mandateService = new MandateService(config.mandateConfig);
+    this.strictMandateMode =
+      config.strictMandateMode !== undefined
+        ? config.strictMandateMode
+        : process.env.STRICT_MANDATE_MODE === "true";
   }
 
   /**
@@ -20,17 +25,36 @@ class A2AService {
    * @param {string} params.fromAgentId - Sender Agent ID
    * @param {string} params.toAgentId - Recipient Agent ID
    * @param {number} params.amount - Amount to transfer
+   * @param {string} params.mandate - Optional signed Mandate (AP2) for Zero Trust validation
    * @param {Object} params.ucpPayload - The original UCP intent/payload
    */
-  async executeTransfer({ fromAgentId, toAgentId, amount, ucpPayload = {} }) {
+  async executeTransfer({
+    fromAgentId,
+    toAgentId,
+    amount,
+    mandate,
+    ucpPayload = {},
+  }) {
     try {
+      // 0. Zero Trust Mandate Validation
+      if (mandate) {
+        await this.mandateService.verifyMandate(mandate, {
+          amount,
+          recipient: toAgentId,
+        });
+      } else if (this.strictMandateMode) {
+        throw new Error(
+          "Zero Trust Validation Failed: Mandate required for A2A transfer in strict mode",
+        );
+      }
+
       // 1. Validate Agents
-      const fromAgent = await Agent.findById(fromAgentId);
+      const fromAgent = await this.db.findAgentById(fromAgentId);
       if (!fromAgent || fromAgent.status !== "active") {
         throw new Error(`Sender agent ${fromAgentId} not found or inactive`);
       }
 
-      const toAgent = await Agent.findById(toAgentId);
+      const toAgent = await this.db.findAgentById(toAgentId);
       if (!toAgent || toAgent.status !== "active") {
         throw new Error(`Recipient agent ${toAgentId} not found or inactive`);
       }
