@@ -105,14 +105,65 @@ class MandateService {
   /**
    * Verify a Mandate (Intent or Cart)
    * @param {string} token - Signed JWT Mandate
+   * @param {Object} context - Optional transaction context for validation (amount, recipient)
    * @returns {Promise<Object>} Decoded mandate payload
    */
-  async verifyMandate(token) {
+  async verifyMandate(token, context = {}) {
+    let decoded;
     try {
-      return jwt.verify(token, this.signingKey, { algorithms: ["HS256"] });
+      decoded = jwt.verify(token, this.signingKey, { algorithms: ["HS256"] });
     } catch (error) {
-      throw new Error(`Zero Trust Validation Failed: Mandate verification failed: ${error.message}`);
+      if (error.message?.includes("jwt expired")) {
+        throw new Error("Zero Trust Validation Failed: Mandate has expired");
+      }
+      throw new Error(
+        `Zero Trust Validation Failed: Mandate verification failed: ${error.message}`,
+      );
     }
+
+    // 1. Validate Expiration (Double check)
+    if (decoded.exp < Math.floor(Date.now() / 1000)) {
+      throw new Error("Zero Trust Validation Failed: Mandate has expired");
+    }
+
+    // 2. Validate Context (if provided)
+    if (context.amount) {
+      // Check Intent Mandate budget
+      if (decoded.max_budget && context.amount > decoded.max_budget.value) {
+        throw new Error(
+          `Zero Trust Validation Failed: Amount ${context.amount} exceeds mandate budget of ${decoded.max_budget.value}`,
+        );
+      }
+      // Check Cart Mandate total price
+      if (decoded.total_price && context.amount !== decoded.total_price) {
+        throw new Error(
+          `Zero Trust Validation Failed: Amount ${context.amount} does not match cart mandate total of ${decoded.total_price}`,
+        );
+      }
+    }
+
+    if (context.recipient) {
+      // Check merchant/recipient whitelist
+      if (decoded.allowed_merchants?.length > 0) {
+        if (!decoded.allowed_merchants.includes(context.recipient)) {
+          throw new Error(
+            `Zero Trust Validation Failed: Merchant ${context.recipient} not authorized by mandate`,
+          );
+        }
+      }
+
+      // Check cart mandate merchant_did
+      if (
+        decoded.merchant_did &&
+        decoded.merchant_did !== context.recipient
+      ) {
+        throw new Error(
+          `Zero Trust Validation Failed: Merchant ${context.recipient} does not match cart mandate recipient ${decoded.merchant_did}`,
+        );
+      }
+    }
+
+    return decoded;
   }
 
   /**
