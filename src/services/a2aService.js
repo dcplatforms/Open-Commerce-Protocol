@@ -5,7 +5,6 @@
  * policy compliance, limit checks, and authorized counterparty validation.
  */
 
-const { Agent } = require("../models/agent");
 const logger = require("../utils/logger");
 
 class A2AService {
@@ -25,12 +24,12 @@ class A2AService {
   async executeTransfer({ fromAgentId, toAgentId, amount, ucpPayload = {} }) {
     try {
       // 1. Validate Agents
-      const fromAgent = await Agent.findById(fromAgentId);
+      const fromAgent = await this.db.findAgentById(fromAgentId);
       if (!fromAgent || fromAgent.status !== "active") {
         throw new Error(`Sender agent ${fromAgentId} not found or inactive`);
       }
 
-      const toAgent = await Agent.findById(toAgentId);
+      const toAgent = await this.db.findAgentById(toAgentId);
       if (!toAgent || toAgent.status !== "active") {
         throw new Error(`Recipient agent ${toAgentId} not found or inactive`);
       }
