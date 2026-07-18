@@ -331,13 +331,12 @@ class TokenizationService {
   async signWithToken(tokenId, dataToSign, mandate, context = {}) {
     // Zero Trust Validation: Verify mandate BEFORE entering try/catch simulation block
     if (mandate) {
-      // Normalize context for MandateService
-      const validationContext = {
-        amount: context.amount,
-        recipient: context.recipient || context.merchant,
-      };
-
       try {
+        // Normalize context for MandateService (merchant -> recipient)
+        const validationContext = {
+          ...context,
+          recipient: context.recipient || context.merchant,
+        };
         await this.mandateService.verifyMandate(mandate, validationContext);
       } catch (error) {
         if (error.message?.includes("Zero Trust Validation Failed:")) {

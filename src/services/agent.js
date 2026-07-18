@@ -72,7 +72,7 @@ class AgentService {
     try {
       const agent = await this.db.findAgentById(agentId);
       if (!agent) {
-        throw new Error("Agent not found");
+        throw new Error("Zero Trust Validation Failed: Agent not found");
       }
       return agent;
     } catch (error) {
@@ -177,15 +177,27 @@ class AgentService {
     // In a real system, this would involve interaction with the WalletService,
     // and policy checks for both agents.
     const fromAgent = await this.getAgent(fromAgentId);
-    const toAgent = await this.getAgent(toAgentId);
+    await this.getAgent(toAgentId); // Verify toAgent exists
 
-    // Basic policy checks (more complex logic would be here)
-    if (amount > fromAgent.policy.spendingLimit) {
-      throw new Error(`Zero Trust Validation Failed: Transfer amount exceeds spending limit for agent ${fromAgentId}`);
+    // Basic policy checks
+    const config = fromAgent.config || {};
+    const limits = config.limits || {};
+    const perTransactionLimit = limits.perTransaction || 0;
+
+    if (perTransactionLimit > 0 && amount > perTransactionLimit) {
+      throw new Error(
+        `Zero Trust Validation Failed: Transfer amount ${amount} exceeds per-transaction limit of ${perTransactionLimit} for agent ${fromAgentId}`,
+      );
     }
-    if (!fromAgent.policy.authorizedCounterparties.includes(toAgentId) &&
-        fromAgent.policy.authorizedCounterparties.length > 0) {
-      throw new Error(`Zero Trust Validation Failed: Agent ${toAgentId} is not an authorized counterparty for ${fromAgentId}`);
+
+    const authorizedCounterparties = config.authorizedCounterparties || [];
+    if (
+      authorizedCounterparties.length > 0 &&
+      !authorizedCounterparties.includes(toAgentId)
+    ) {
+      throw new Error(
+        `Zero Trust Validation Failed: Agent ${toAgentId} is not an authorized counterparty for ${fromAgentId}`,
+      );
     }
 
     // Simulate transfer success
