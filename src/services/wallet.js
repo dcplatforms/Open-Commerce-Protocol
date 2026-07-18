@@ -36,7 +36,7 @@ class WalletService {
       // Check if user already has a wallet
       const existingWallet = await this.db.findWalletByUserId(userId);
       if (existingWallet) {
-        throw new Error("User already has a wallet");
+        throw new Error("Zero Trust Validation Failed: User already has a wallet");
       }
 
       // Validate initial balance
@@ -91,7 +91,7 @@ class WalletService {
     try {
       const wallet = await this.db.findWalletById(walletId);
       if (!wallet) {
-        throw new Error("Wallet not found");
+        throw new Error("Zero Trust Validation Failed: Wallet not found");
       }
       return wallet;
     } catch (error) {
@@ -108,7 +108,7 @@ class WalletService {
     try {
       const wallet = await this.db.findWalletByUserId(userId);
       if (!wallet) {
-        throw new Error("Wallet not found for user");
+        throw new Error("Zero Trust Validation Failed: Wallet not found for user");
       }
       return wallet;
     } catch (error) {
@@ -142,7 +142,7 @@ class WalletService {
       // Get wallet
       const wallet = await this.getWallet(walletId);
       if (wallet.status !== "active") {
-        throw new Error("Wallet is not active");
+        throw new Error("Zero Trust Validation Failed: Wallet is not active");
       }
 
       // Check if new balance would exceed max
@@ -215,12 +215,12 @@ class WalletService {
       // Get wallet
       const wallet = await this.getWallet(walletId);
       if (wallet.status !== "active") {
-        throw new Error("Wallet is not active");
+        throw new Error("Zero Trust Validation Failed: Wallet is not active");
       }
 
       // Check sufficient balance
       if (wallet.balance < amount) {
-        throw new Error("Insufficient balance");
+        throw new Error("Zero Trust Validation Failed: Insufficient balance");
       }
 
       const newBalance = wallet.balance - amount;
@@ -297,7 +297,7 @@ class WalletService {
       }
 
       if (fromWalletId === toWalletId) {
-        throw new Error("Cannot transfer to same wallet");
+        throw new Error("Zero Trust Validation Failed: Cannot transfer to same wallet");
       }
 
       // Start transaction
