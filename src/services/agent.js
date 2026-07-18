@@ -73,7 +73,7 @@ class AgentService {
     try {
       const agent = await this.db.findAgentById(agentId);
       if (!agent) {
-        throw new Error("Agent not found");
+        throw new Error("Zero Trust Validation Failed: Agent not found");
       }
       return agent;
     } catch (error) {
@@ -185,25 +185,26 @@ class AgentService {
 
     // Fallback for cases where a2aService is not provided
     const fromAgent = await this.getAgent(fromAgentId);
-    const toAgent = await this.getAgent(toAgentId);
+    await this.getAgent(toAgentId); // Verify toAgent exists
 
     // Basic policy checks
-    const { config } = fromAgent;
-    const perTransactionLimit =
-      config?.limits?.perTransaction || this.config.defaultSpendingLimit;
+    const config = fromAgent.config || {};
+    const limits = config.limits || {};
+    const perTransactionLimit = limits.perTransaction || 0;
 
-    if (amount > perTransactionLimit) {
+    if (perTransactionLimit > 0 && amount > perTransactionLimit) {
       throw new Error(
-        `Zero Trust Validation Failed: Amount ${amount} exceeds agent per-transaction limit of ${perTransactionLimit}`,
+        `Zero Trust Validation Failed: Transfer amount ${amount} exceeds per-transaction limit of ${perTransactionLimit} for agent ${fromAgentId}`,
       );
     }
 
+    const authorizedCounterparties = config.authorizedCounterparties || [];
     if (
-      config?.authorizedCounterparties?.length > 0 &&
-      !config.authorizedCounterparties.includes(toAgentId)
+      authorizedCounterparties.length > 0 &&
+      !authorizedCounterparties.includes(toAgentId)
     ) {
       throw new Error(
-        `Zero Trust Validation Failed: Agent ${fromAgentId} is not authorized to trade with ${toAgentId}`,
+        `Zero Trust Validation Failed: Agent ${toAgentId} is not an authorized counterparty for ${fromAgentId}`,
       );
     }
 

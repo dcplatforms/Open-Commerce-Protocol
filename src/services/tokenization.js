@@ -331,53 +331,20 @@ class TokenizationService {
   async signWithToken(tokenId, dataToSign, mandate, context = {}) {
     // Zero Trust Validation: Verify mandate BEFORE entering try/catch simulation block
     if (mandate) {
-      let decodedMandate;
       try {
-        decodedMandate = await this.mandateService.verifyMandate(mandate);
+        // Normalize context for MandateService (merchant -> recipient)
+        const validationContext = {
+          ...context,
+          recipient: context.recipient || context.merchant,
+        };
+        await this.mandateService.verifyMandate(mandate, validationContext);
       } catch (error) {
-        if (error.message?.includes("jwt expired")) {
-          throw new Error("Zero Trust Validation Failed: Mandate has expired");
-        }
         if (error.message?.includes("Zero Trust Validation Failed:")) {
           throw error;
         }
-        throw new Error(`Zero Trust Validation Failed: ${error.message || error}`);
-      }
-
-      // Validate budget if context amount is provided
-      if (context.amount) {
-        // Check Intent Mandate budget
-        if (
-          decodedMandate.max_budget &&
-          context.amount > decodedMandate.max_budget.value
-        ) {
-          throw new Error(
-            `Zero Trust Validation Failed: Amount ${context.amount} exceeds mandate budget of ${decodedMandate.max_budget.value}`,
-          );
-        }
-        // Check Cart Mandate total price
-        if (
-          decodedMandate.total_price &&
-          context.amount !== decodedMandate.total_price
-        ) {
-          throw new Error(
-            `Zero Trust Validation Failed: Amount ${context.amount} does not match cart mandate total of ${decodedMandate.total_price}`,
-          );
-        }
-      }
-
-      // Validate merchant if context merchant is provided
-      if (context.merchant && decodedMandate.allowed_merchants?.length > 0) {
-        if (!decodedMandate.allowed_merchants.includes(context.merchant)) {
-          throw new Error(
-            `Zero Trust Validation Failed: Merchant ${context.merchant} not authorized by mandate`,
-          );
-        }
-      }
-
-      // Validate expiration
-      if (decodedMandate.exp < Math.floor(Date.now() / 1000)) {
-        throw new Error("Zero Trust Validation Failed: Mandate has expired");
+        throw new Error(
+          `Zero Trust Validation Failed: ${error.message || error}`,
+        );
       }
     } else if (this.strictMandateMode) {
       throw new Error(
@@ -415,6 +382,14 @@ class TokenizationService {
   _handleError(method, error) {
     logger.error(`TokenizationService.${method} error:`, error);
 
+    // Normalize Zero Trust errors
+    if (
+      error.message &&
+      error.message.includes("Zero Trust Validation Failed:")
+    ) {
+      return error;
+    }
+
     if (error.response) {
       const { status, data } = error.response;
       return new Error(
@@ -426,7 +401,7 @@ class TokenizationService {
       return new Error("Tokenization service unavailable");
     }
 
-    return error;
+    return error instanceof Error ? error : new Error(error);
   }
 }
 

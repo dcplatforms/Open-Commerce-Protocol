@@ -105,14 +105,42 @@ class MandateService {
   /**
    * Verify a Mandate (Intent or Cart)
    * @param {string} token - Signed JWT Mandate
+   * @param {Object} context - Optional context for validation (amount, recipient)
    * @returns {Promise<Object>} Decoded mandate payload
    */
-  async verifyMandate(token) {
+  async verifyMandate(token, context = {}) {
+    let decoded;
     try {
-      return jwt.verify(token, this.signingKey, { algorithms: ["HS256"] });
+      decoded = jwt.verify(token, this.signingKey, { algorithms: ["HS256"] });
     } catch (error) {
-      throw new Error(`Zero Trust Validation Failed: Mandate verification failed: ${error.message}`);
+      throw new Error(
+        `Zero Trust Validation Failed: Mandate verification failed: ${error.message}`,
+      );
     }
+
+    // Contextual Validation
+    if (context.amount) {
+      if (decoded.max_budget && context.amount > decoded.max_budget.value) {
+        throw new Error(
+          `Zero Trust Validation Failed: Amount ${context.amount} exceeds mandate budget of ${decoded.max_budget.value}`,
+        );
+      }
+      if (decoded.total_price && context.amount !== decoded.total_price) {
+        throw new Error(
+          `Zero Trust Validation Failed: Amount ${context.amount} does not match cart mandate total of ${decoded.total_price}`,
+        );
+      }
+    }
+
+    if (context.recipient && decoded.allowed_merchants?.length > 0) {
+      if (!decoded.allowed_merchants.includes(context.recipient)) {
+        throw new Error(
+          `Zero Trust Validation Failed: Recipient ${context.recipient} not authorized by mandate`,
+        );
+      }
+    }
+
+    return decoded;
   }
 
   /**

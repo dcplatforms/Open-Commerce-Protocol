@@ -154,7 +154,7 @@ program.command('x402:settle')
         return;
       }
     } else if (process.env.STRICT_MANDATE_MODE === 'true') {
-      console.error(`Error: Mandate required for x402 settlement in STRICT_MANDATE_MODE.`);
+      console.error(`Zero Trust Validation Failed: Mandate required for x402 settlement in STRICT_MANDATE_MODE.`);
       return;
     }
 
