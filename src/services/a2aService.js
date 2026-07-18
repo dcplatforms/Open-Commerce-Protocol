@@ -7,6 +7,7 @@
 
 const MandateService = require("./mandate");
 const logger = require("../utils/logger");
+const MandateService = require("./mandate");
 
 class A2AService {
   constructor(walletService, db, config = {}) {
@@ -67,10 +68,22 @@ class A2AService {
         );
       }
 
-      // 2. Policy Checks (Sender)
+      // 2. Zero Trust Mandate Validation
+      if (mandate) {
+        await this.mandateService.verifyMandate(mandate, {
+          amount,
+          recipient: toAgentId,
+        });
+      } else if (this.strictMandateMode) {
+        throw new Error(
+          "Zero Trust Validation Failed: Mandate required for A2A transfer in strict mode",
+        );
+      }
+
+      // 3. Policy Checks (Sender)
       await this._validateAgentPolicy(fromAgent, toAgentId, amount);
 
-      // 3. Execute Wallet Transfer
+      // 4. Execute Wallet Transfer
       const transferResult = await this.walletService.transfer({
         fromWalletId: fromAgent.walletId,
         toWalletId: toAgent.walletId,
@@ -136,6 +149,15 @@ class A2AService {
    */
   _handleError(method, error) {
     logger.error(`A2AService.${method} error:`, error);
+
+    // Normalize Zero Trust errors
+    if (
+      error.message &&
+      error.message.includes("Zero Trust Validation Failed:")
+    ) {
+      return error;
+    }
+
     return error instanceof Error ? error : new Error(error);
   }
 }

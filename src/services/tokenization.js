@@ -382,6 +382,14 @@ class TokenizationService {
   _handleError(method, error) {
     logger.error(`TokenizationService.${method} error:`, error);
 
+    // Normalize Zero Trust errors
+    if (
+      error.message &&
+      error.message.includes("Zero Trust Validation Failed:")
+    ) {
+      return error;
+    }
+
     if (error.response) {
       const { status, data } = error.response;
       return new Error(
@@ -393,7 +401,7 @@ class TokenizationService {
       return new Error("Tokenization service unavailable");
     }
 
-    return error;
+    return error instanceof Error ? error : new Error(error);
   }
 }
 
