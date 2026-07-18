@@ -19,6 +19,7 @@ class DBAdapter {
     async createWallet(data) { return Wallet.create(data); }
     async createTransaction(data) { return Transaction.create(data); }
     async updateTransaction(id, data) { return Transaction.findByIdAndUpdate(id, data, { new: true }); }
+    async findAgentById(id) { return Agent.findById(id); }
 
     async updateWalletBalance(walletId, amount) {
         return Wallet.findByIdAndUpdate(walletId, { $inc: { balance: amount } }, { new: true });
