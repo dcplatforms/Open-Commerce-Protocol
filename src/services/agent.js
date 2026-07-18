@@ -10,7 +10,7 @@ const MandateService = require("./mandate");
 const logger = require("../utils/logger");
 
 class AgentService {
-  constructor(database, config = {}) {
+  constructor(database, config = {}, a2aService = null) {
     this.db = database;
     this.config = {
       defaultSpendingLimit: config.defaultSpendingLimit || 1000,
@@ -18,6 +18,7 @@ class AgentService {
         config.defaultAuthorizedCounterparties || [],
     };
     this.mandateService = new MandateService(config.mandateConfig);
+    this.a2aService = a2aService;
   }
 
   /**
@@ -164,7 +165,7 @@ class AgentService {
   }
 
   /**
-   * Perform an Agent-to-Agent (A2A) transfer (conceptual)
+   * Perform an Agent-to-Agent (A2A) transfer
    * @param {Object} params - Transfer parameters
    * @param {string} params.fromAgentId - Source agent ID
    * @param {string} params.toAgentId - Destination agent ID
@@ -173,9 +174,16 @@ class AgentService {
    * @returns {Promise<Object>} Transfer result
    */
   async performA2ATransfer({ fromAgentId, toAgentId, amount, currency }) {
-    // This is a conceptual implementation.
-    // In a real system, this would involve interaction with the WalletService,
-    // and policy checks for both agents.
+    if (this.a2aService) {
+      return await this.a2aService.executeTransfer({
+        fromAgentId,
+        toAgentId,
+        amount,
+        ucpPayload: { currency },
+      });
+    }
+
+    // Fallback for cases where a2aService is not provided
     const fromAgent = await this.getAgent(fromAgentId);
     await this.getAgent(toAgentId); // Verify toAgent exists
 
