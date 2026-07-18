@@ -12,8 +12,7 @@ class A2AService {
   constructor(walletService, db, config = {}) {
     this.walletService = walletService;
     this.db = db;
-    this.config = config;
-    this.mandateService = new MandateService(config.mandateConfig);
+    this.mandateService = config.mandateService || new MandateService(config.mandateConfig);
     this.strictMandateMode =
       config.strictMandateMode !== undefined
         ? config.strictMandateMode
@@ -26,6 +25,7 @@ class A2AService {
    * @param {string} params.fromAgentId - Sender Agent ID
    * @param {string} params.toAgentId - Recipient Agent ID
    * @param {number} params.amount - Amount to transfer
+   * @param {string} params.mandate - Optional signed Mandate (AP2) for Zero Trust validation
    * @param {Object} params.ucpPayload - The original UCP intent/payload
    * @param {string} params.mandate - Optional signed Mandate (AP2) for Zero Trust validation
    */
@@ -33,23 +33,17 @@ class A2AService {
     fromAgentId,
     toAgentId,
     amount,
-    ucpPayload = {},
     mandate,
+    ucpPayload = {},
   }) {
     try {
-      // Zero Trust Validation: Verify mandate if provided or required
+      // 0. Zero Trust Mandate Validation
       if (mandate) {
         try {
-          await this.mandateService.verifyMandate(mandate, {
-            amount,
-            recipient: toAgentId,
-          });
+          await this.mandateService.verifyMandate(mandate);
         } catch (error) {
-          if (error.message?.includes("Zero Trust Validation Failed:")) {
-            throw error;
-          }
           throw new Error(
-            `Zero Trust Validation Failed: ${error.message || error}`,
+            `Zero Trust Validation Failed: Mandate verification failed: ${error.message}`,
           );
         }
       } else if (this.strictMandateMode) {
@@ -58,7 +52,7 @@ class A2AService {
         );
       }
 
-      // 1. Validate Agents
+      // 1. Validate Agents using Repository Pattern
       const fromAgent = await this.db.findAgentById(fromAgentId);
       if (!fromAgent || fromAgent.status !== "active") {
         throw new Error(
@@ -88,12 +82,9 @@ class A2AService {
           counterpartyAgentId: toAgentId,
           ucpPayload,
           type: "a2a_transfer",
+          mandate,
         },
       });
-
-      // 4. Update Agent Usage (if we were tracking daily usage in db, we'd do it here)
-      // For now, limits are stateless checks against config.
-      // In a real implementation, we would query daily volume or update a usage record.
 
       return {
         success: true,
