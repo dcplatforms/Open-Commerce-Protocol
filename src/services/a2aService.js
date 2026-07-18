@@ -27,6 +27,7 @@ class A2AService {
    * @param {number} params.amount - Amount to transfer
    * @param {string} params.mandate - Optional signed Mandate (AP2) for Zero Trust validation
    * @param {Object} params.ucpPayload - The original UCP intent/payload
+   * @param {string} params.mandate - Optional signed Mandate (AP2) for Zero Trust validation
    */
   async executeTransfer({
     fromAgentId,
