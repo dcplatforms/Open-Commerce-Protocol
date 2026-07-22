@@ -194,7 +194,7 @@ class AgentService {
 
     if (perTransactionLimit > 0 && amount > perTransactionLimit) {
       throw new Error(
-        `Zero Trust Validation Failed: Transfer amount ${amount} exceeds per-transaction limit of ${perTransactionLimit} for agent ${fromAgentId}`,
+        `Zero Trust Validation Failed: Amount ${amount} exceeds agent per-transaction limit of ${perTransactionLimit}`,
       );
     }
 
