@@ -7,7 +7,6 @@
 
 const MandateService = require("./mandate");
 const logger = require("../utils/logger");
-const MandateService = require("./mandate");
 
 class A2AService {
   constructor(walletService, db, config = {}) {

@@ -113,6 +113,9 @@ class MandateService {
     try {
       decoded = jwt.verify(token, this.signingKey, { algorithms: ["HS256"] });
     } catch (error) {
+      if (error.name === "TokenExpiredError" || error.message?.includes("expired")) {
+        throw new Error("Zero Trust Validation Failed: Mandate has expired");
+      }
       throw new Error(
         `Zero Trust Validation Failed: Mandate verification failed: ${error.message}`,
       );
@@ -135,7 +138,7 @@ class MandateService {
     if (context.recipient && decoded.allowed_merchants?.length > 0) {
       if (!decoded.allowed_merchants.includes(context.recipient)) {
         throw new Error(
-          `Zero Trust Validation Failed: Recipient ${context.recipient} not authorized by mandate`,
+          `Zero Trust Validation Failed: Merchant ${context.recipient} not authorized by mandate`,
         );
       }
     }
